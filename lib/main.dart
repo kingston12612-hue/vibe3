@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 const bg=Color(0xFF09090F), surface=Color(0xFF14141D), surface2=Color(0xFF1A1A26), stroke=Color(0xFF292938);
 const muted=Color(0xFF9696AC), purple=Color(0xFF8164FF), blue=Color(0xFF63A8FF), pink=Color(0xFFD96EFF);
@@ -24,8 +25,6 @@ ThemeData themeData(bool dark)=>ThemeData(brightness:dark?Brightness.dark:Bright
  appBarTheme:AppBarTheme(backgroundColor:dark?bg:const Color(0xFFF7F7FB),elevation:0),
  navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?surface:Colors.white),
  inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:dark?surface2:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:BorderSide(color:dark?stroke:Colors.black12)),focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:const BorderSide(color:purple))));
-
-import 'dart:convert';
 
 class AuthScreen extends StatefulWidget{final Future<void> Function(String,String) onLogin;const AuthScreen({super.key,required this.onLogin});@override State<AuthScreen> createState()=>_AuthState();}
 class _AuthState extends State<AuthScreen>{bool register=false,busy=false;final email=TextEditingController(),name=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
