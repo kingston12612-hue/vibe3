@@ -8,14 +8,16 @@ void main()=>runApp(const VibeApp());
 
 class VibeApp extends StatefulWidget{const VibeApp({super.key});@override State<VibeApp> createState()=>_VibeState();}
 class _VibeState extends State<VibeApp>{
- bool light=false,ready=false;String name='Alex';
+ bool light=false,ready=false,logged=false;String name='Alex',email='';
  @override void initState(){super.initState();load();}
- Future<void> load()async{final p=await SharedPreferences.getInstance();setState((){light=p.getBool('light')??false;name=p.getString('name')??'Alex';ready=true;});}
+ Future<void> load()async{final p=await SharedPreferences.getInstance();setState((){light=p.getBool('light')??false;name=p.getString('name')??'Alex';email=p.getString('email')??'';logged=p.getBool('logged')??false;ready=true;});}
  Future<void> theme(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('light',v);setState(()=>light=v);}
  Future<void> rename(String v)async{final p=await SharedPreferences.getInstance();await p.setString('name',v);setState(()=>name=v);}
+ Future<void> login(String e,String n)async{final p=await SharedPreferences.getInstance();await p.setBool('logged',true);await p.setString('email',e);await p.setString('name',n);setState((){logged=true;email=e;name=n;});}
+ Future<void> logout()async{final p=await SharedPreferences.getInstance();await p.setBool('logged',false);setState(()=>logged=false);}
  @override Widget build(BuildContext c){if(!ready)return const MaterialApp(home:Scaffold(backgroundColor:bg,body:Center(child:CircularProgressIndicator())));
  return MaterialApp(debugShowCheckedModeBanner:false,title:'vibe<3',themeMode:light?ThemeMode.light:ThemeMode.dark,darkTheme:themeData(true),theme:themeData(false),
- home:Shell(name:name,light:light,onTheme:theme,onName:rename));}
+ home:logged?Shell(name:name,light:light,onTheme:theme,onName:rename):AuthScreen(onLogin:login));}
 }
 ThemeData themeData(bool dark)=>ThemeData(brightness:dark?Brightness.dark:Brightness.light,scaffoldBackgroundColor:dark?bg:const Color(0xFFF7F7FB),useMaterial3:true,
  colorScheme:ColorScheme.fromSeed(seedColor:purple,brightness:dark?Brightness.dark:Brightness.light),
@@ -23,6 +25,16 @@ ThemeData themeData(bool dark)=>ThemeData(brightness:dark?Brightness.dark:Bright
  navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?surface:Colors.white),
  inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:dark?surface2:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:BorderSide(color:dark?stroke:Colors.black12)),focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:const BorderSide(color:purple))));
 
+import 'dart:convert';
+
+class AuthScreen extends StatefulWidget{final Future<void> Function(String,String) onLogin;const AuthScreen({super.key,required this.onLogin});@override State<AuthScreen> createState()=>_AuthState();}
+class _AuthState extends State<AuthScreen>{bool register=false,busy=false;final email=TextEditingController(),name=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+Future<List<Map<String,dynamic>>> accounts()async{final p=await SharedPreferences.getInstance();final raw=p.getString('accounts')??'[]';return List<Map<String,dynamic>>.from(jsonDecode(raw));}
+Future<void> save(List<Map<String,dynamic>> a)async{final p=await SharedPreferences.getInstance();await p.setString('accounts',jsonEncode(a));}
+void err(String x){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));}
+Future<void> submit()async{final e=email.text.trim().toLowerCase(),pw=pass.text,n=name.text.trim();if(!e.contains('@')){err('Введите корректный email');return;}if(pw.length<6){err('Пароль должен быть минимум 6 символов');return;}setState(()=>busy=true);final a=await accounts();if(register){if(n.length<2){setState(()=>busy=false);err('Введите имя');return;}if(pass2.text!=pw){setState(()=>busy=false);err('Пароли не совпадают');return;}if(a.any((x)=>x['email']==e)){setState(()=>busy=false);err('Этот email уже зарегистрирован');return;}a.add({'email':e,'name':n,'password':pw});await save(a);await widget.onLogin(e,n);}else{final hits=a.where((x)=>x['email']==e&&x['password']==pw).toList();if(hits.isEmpty){setState(()=>busy=false);err('Неверный email или пароль');return;}await widget.onLogin(e,hits.first['name']);}setState(()=>busy=false);}
+@override Widget build(BuildContext c)=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Container(height:90,alignment:Alignment.center,decoration:BoxDecoration(borderRadius:BorderRadius.circular(28),gradient:const LinearGradient(colors:[purple,pink])),child:const Text('v<3',style:TextStyle(color:Colors.white,fontSize:30,fontWeight:FontWeight.w900))),const SizedBox(height:24),Text(register?'Создать аккаунт':'Войти в vibe<3',textAlign:TextAlign.center,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900)),const SizedBox(height:24),if(register)Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:name,decoration:const InputDecoration(prefixIcon:Icon(Icons.person_outline),hintText:'Имя'))),TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(prefixIcon:Icon(Icons.email_outlined),hintText:'Email')),const SizedBox(height:12),TextField(controller:pass,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_outline),hintText:'Пароль')),if(register)Padding(padding:const EdgeInsets.only(top:12),child:TextField(controller:pass2,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_reset),hintText:'Повторите пароль'))),const SizedBox(height:18),FilledButton(onPressed:busy?null:submit,style:FilledButton.styleFrom(minimumSize:const Size.fromHeight(52),backgroundColor:purple),child:Text(busy?'Подождите...':register?'Зарегистрироваться':'Войти')),TextButton(onPressed:busy?null:()=>setState(()=>register=!register),child:Text(register?'Уже есть аккаунт? Войти':'Нет аккаунта? Зарегистрироваться')),const SizedBox(height:12),const Text('Аккаунты сохраняются на устройстве. Серверная синхронизация будет подключена отдельно.',textAlign:TextAlign.center,style:TextStyle(color:muted,fontSize:12))]))))));
+}
 class Chat{String id,name,preview,time;bool online;int unread;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0});}
 class Msg{String text;bool mine;Msg(this.text,this.mine);}
 final chats=<Chat>[Chat('1','Marcus','yo, are you online?','02:14',online:true,unread:2),Chat('2','Lina','That photo is insane 🔥','01:48',online:true),Chat('3','vibe<3 Team','Welcome to the new vibe.','Yesterday'),Chat('4','Mike','See you tomorrow','Yesterday')];
