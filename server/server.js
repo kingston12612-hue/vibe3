@@ -117,5 +117,6 @@ async function migrate(){
     catch(e){console.error('migration failed:',sql.slice(0,100),e);throw e;}
   }
   console.log('database schema ready');
+  console.log('AUTH_DB_MIGRATION_OK');
 }
 migrate().then(()=>server.listen(process.env.PORT||3000,()=>console.log('vibe<3 server ready'))).catch(e=>{console.error(e);process.exit(1);});
