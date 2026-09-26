@@ -43,7 +43,7 @@ jobs:
           from pathlib import Path
           p = Path("android/app/src/main/res/values/strings.xml")
           s = p.read_text()
-          s = s.replace("<string name="app_name">vibe3</string>", "<string name="app_name">Vibe&lt;3</string>")
+          s = s.replace('<string name="app_name">vibe3</string>', '<string name="app_name">Vibe&lt;3</string>')
           p.write_text(s)
           PY
 
