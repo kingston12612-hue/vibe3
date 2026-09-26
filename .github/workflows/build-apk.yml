@@ -49,3 +49,4 @@ jobs:
         with:
           name: vibe3-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
