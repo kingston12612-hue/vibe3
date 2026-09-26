@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 const apiBase=String.fromEnvironment('VIBE_API',defaultValue:'https://vibe-api-production-7f4a.up.railway.app');
-const bg=Color(0xFF09090F),surface=Color(0xFF14141D),surface2=Color(0xFF1A1A26),stroke=Color(0xFF292938);
+const bg=Color(0xFF09090F),surface=Color(0xFF14141D),surface2=Color(0xFF1A1A26),stroke=Color(0xFF292938),green=Color(0xFF59E391);
 const muted=Color(0xFF9696AC),purple=Color(0xFF8164FF),blue=Color(0xFF63A8FF),pink=Color(0xFFD96EFF);
 
 void main()=>runApp(const VibeApp());
@@ -108,7 +108,7 @@ ThemeData vibeTheme(bool dark){
     scaffoldBackgroundColor:dark?bg:const Color(0xFFF6F4FB),
     canvasColor:dark?bg:const Color(0xFFF6F4FB),
     appBarTheme:AppBarTheme(backgroundColor:(dark?bg:const Color(0xFFF6F4FB)).withOpacity(.96),elevation:0,surfaceTintColor:Colors.transparent),
-    cardTheme:CardThemeData(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
+    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
     navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,indicatorColor:purple.withOpacity(.18),height:72,labelTextStyle:WidgetStatePropertyAll(const TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
     inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:dark?surface2:const Color(0xFFEFEFF5),hintStyle:TextStyle(color:dark?muted:const Color(0xFF7E7E8E)),border:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:BorderSide(color:dark?stroke:Colors.black12)),enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:BorderSide(color:dark?stroke:Colors.black12)),focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:const BorderSide(color:purple,width:1.4))),
     filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(backgroundColor:purple,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),minimumSize:const Size.fromHeight(52))),
@@ -296,15 +296,15 @@ class _ChatsState extends State<Chats>{
       Padding(padding:const EdgeInsets.fromLTRB(18,14,12,8),child:Row(children:[
         const _VibeWordmark(),const Spacer(),
         IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)onOpen(x);},icon:const Icon(Icons.search_rounded)),
-        IconButton(tooltip:s.newChat,onPressed:onNewChat,icon:const Icon(Icons.add_comment_rounded)),
+        IconButton(tooltip:s.newChat,onPressed:widget.onNewChat,icon:const Icon(Icons.add_comment_rounded)),
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v)=>setState(()=>q=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:s.searchChats))),
       const SizedBox(height:10),
       Expanded(child:RefreshIndicator(
         onRefresh:load,
-        child:loading?const ListView(children:[SizedBox(height:190),Center(child:CircularProgressIndicator())]):filtered.isEmpty
+        child:loading?ListView(children:[const SizedBox(height:190),const Center(child:CircularProgressIndicator())]):filtered.isEmpty
           ?ListView(physics:const AlwaysScrollableScrollPhysics(),children:[const SizedBox(height:145),EmptyState(icon:Icons.forum_outlined,title:s.noChats,sub:s.noChatsSub)])
-          :ListView.separated(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(12,2,12,24),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:8),itemBuilder:(_,i)=>Tile(chat:filtered[i],tap:()=>onOpen(filtered[i]))),
+          :ListView.separated(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(12,2,12,24),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:8),itemBuilder:(_,i)=>Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i]))),
       )),
     ]);
   }
@@ -421,7 +421,7 @@ class _ChatState extends State<ChatPage>{
       Avatar(name:widget.chat.name,size:84),const SizedBox(height:12),Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),const SizedBox(height:15),
       ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
       ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
-    ])));
+    ]))));
   }
   void showChatMenu(BuildContext context){
     final s=S(context);
