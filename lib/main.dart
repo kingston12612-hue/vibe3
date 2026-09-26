@@ -912,7 +912,7 @@ class _CircleActionState extends State<_CircleAction>{
     return GestureDetector(
       onTapDown:(_)=>setState(()=>pressed=true),
       onTapCancel:()=>setState(()=>pressed=false),
-      onTapUp:(_){setState(()=>pressed=false);if(!widget.busy)widget.onTap();},
+      onTapUp:(_)=>setState(()=>pressed=false),
       child:AnimatedScale(
         scale:pressed?.90:1,
         duration:const Duration(milliseconds:90),
