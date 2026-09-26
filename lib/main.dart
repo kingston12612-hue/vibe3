@@ -295,7 +295,7 @@ class _ChatsState extends State<Chats>{
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(18,14,12,8),child:Row(children:[
         const _VibeWordmark(),const Spacer(),
-        IconButton(tooltip:s.search,onPressed:()=>showSearch(context:context,delegate:ChatSearch(list)),icon:const Icon(Icons.search_rounded)),
+        IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)onOpen(x);},icon:const Icon(Icons.search_rounded)),
         IconButton(tooltip:s.newChat,onPressed:onNewChat,icon:const Icon(Icons.add_comment_rounded)),
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v)=>setState(()=>q=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:s.searchChats))),
