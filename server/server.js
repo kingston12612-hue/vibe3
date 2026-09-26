@@ -9,12 +9,12 @@ const {Pool}=require('pg');
 const app=express();
 const server=http.createServer(app);
 const io=new Server(server,{cors:{origin:'*'}});
-const pool=new Pool({connectionString:process.env.DATABASE_URL});
+const pool=new Pool();
 const SECRET=process.env.JWT_SECRET||'change-me';
 
 app.use(cors());
 app.use(express.json({limit:'10mb'}));
-app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true});}catch(e){res.status(503).json({ok:false,database:false});}});
+app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true});}catch(e){console.error('health',e);res.status(503).json({ok:false,database:false});}});
 
 function token(user){return jwt.sign({id:user.id,email:user.email,name:user.display_name},SECRET,{expiresIn:'30d'});}
 function auth(req,res,next){try{req.user=jwt.verify((req.headers.authorization||'').replace(/^Bearer /,''),SECRET);next();}catch{res.status(401).json({error:'unauthorized'});}}
@@ -69,46 +69,53 @@ app.post('/chats/:id/messages',auth,async(req,res)=>{try{
 io.use((s,next)=>{try{s.user=jwt.verify(s.handshake.auth?.token||'',SECRET);next();}catch{next(new Error('unauthorized'));}});
 io.on('connection',s=>{s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));s.on('joinChat',id=>s.join('chat:'+id));s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);}catch(e){s.emit('error',{error:'message_failed'});}});s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));});
 
-async function migrate(){await pool.query(`
- CREATE EXTENSION IF NOT EXISTS pgcrypto;
- CREATE TABLE IF NOT EXISTS users(
-   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-   email TEXT UNIQUE NOT NULL,
-   username TEXT UNIQUE,
-   display_name TEXT NOT NULL,
-   password_hash TEXT NOT NULL,
-   avatar_url TEXT,
-   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
- );
- CREATE TABLE IF NOT EXISTS chats(
-   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-   title TEXT NOT NULL DEFAULT 'Chat',
-   is_group BOOLEAN NOT NULL DEFAULT false,
-   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
- );
- CREATE TABLE IF NOT EXISTS messages(
-   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-   chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-   sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-   body TEXT NOT NULL DEFAULT '',
-   message_type TEXT NOT NULL DEFAULT 'text',
-   media_url TEXT,
-   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
- );
- ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
- ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
- ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
- ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by UUID;
- ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text';
- ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT;
- CREATE TABLE IF NOT EXISTS chat_members(
-   chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
-   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-   joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-   PRIMARY KEY(chat_id,user_id)
- );
- CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at);
- CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id);
-`);}
+async function migrate(){
+  const statements=[
+    'CREATE EXTENSION IF NOT EXISTS pgcrypto',
+    `CREATE TABLE IF NOT EXISTS users(
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT UNIQUE NOT NULL,
+      username TEXT UNIQUE,
+      display_name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      avatar_url TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+    `CREATE TABLE IF NOT EXISTS chats(
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL DEFAULT 'Chat',
+      is_group BOOLEAN NOT NULL DEFAULT false,
+      created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+    `CREATE TABLE IF NOT EXISTS messages(
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      sender_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      body TEXT NOT NULL DEFAULT '',
+      message_type TEXT NOT NULL DEFAULT 'text',
+      media_url TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT',
+    'ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by UUID',
+    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text'",
+    'ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT',
+    `CREATE TABLE IF NOT EXISTS chat_members(
+      chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY(chat_id,user_id)
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at)',
+    'CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id)'
+  ];
+  for(const sql of statements){
+    try{await pool.query(sql);}
+    catch(e){console.error('migration failed:',sql.slice(0,100),e);throw e;}
+  }
+  console.log('database schema ready');
+}
 migrate().then(()=>server.listen(process.env.PORT||3000,()=>console.log('vibe<3 server ready'))).catch(e=>{console.error(e);process.exit(1);});
