@@ -20,35 +20,31 @@ function token(user){return jwt.sign({id:user.id,email:user.email,name:user.disp
 function auth(req,res,next){try{req.user=jwt.verify((req.headers.authorization||'').replace(/^Bearer /,''),SECRET);next();}catch{res.status(401).json({error:'unauthorized'});}}
 
 app.post('/auth/register',async(req,res)=>{try{
- const email=String(req.body?.email||'').trim().toLowerCase(),name=String(req.body?.name||'').trim(),password=String(req.body?.password||'');
- if(!email.includes('@')||!name||name.length<2||password.length<6)return res.status(400).json({error:'invalid_input'});
+ const email=String(req.body?.email||'').trim().toLowerCase(),name=String(req.body?.name||'').trim(),password=String(req.body?.password||''),rawUsername=String(req.body?.username||'').trim().toLowerCase();
+ const username=rawUsername.replace(/^@/,'');
+ if(!email.includes('@')||!name||name.length<2||password.length<6||!username||!/^[a-z0-9_]{3,30}$/.test(username))return res.status(400).json({error:'invalid_username'});
  const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);if(exists.rowCount)return res.status(409).json({error:'email_exists'});
  const hash=await bcrypt.hash(password,12);
- const baseUsername=email.split('@')[0].replace(/[^a-zA-Z0-9_]/g,'_').slice(0,24)||'user';
- let u;
- for(let attempt=0;attempt<5;attempt++){
-   const username=(attempt===0?baseUsername:`${baseUsername}_${Math.floor(Math.random()*9000)+1000}`).slice(0,30);
-   try{
-     const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,display_name',[email,username,name,hash]);
-     u=r.rows[0]; break;
-   }catch(e){
-     if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
-     if(e.code!=='23505' || attempt===4) throw e;
-   }
+ try{
+   const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,username,display_name',[email,username,name,hash]);
+   u=r.rows[0];
+ }catch(e){
+   if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
+   if(e.code==='23505' && String(e.constraint||'').includes('username')) return res.status(409).json({error:'username_taken'});
+   throw e;
  }
- if(!u) return res.status(500).json({error:'registration_failed'});
- res.json({token:token(u),user:{id:u.id,email:u.email,name:u.display_name}});
+ res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
 app.post('/auth/login',async(req,res)=>{try{
- const email=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');
- const r=await pool.query('SELECT id,email,display_name,password_hash FROM users WHERE email=$1',[email]);
+ const login=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');
+ const r=await pool.query('SELECT id,email,username,display_name,password_hash FROM users WHERE email=$1 OR username=$1',[login]);
  if(!r.rowCount||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'invalid_credentials'});
- const u=r.rows[0];res.json({token:token(u),user:{id:u.id,email:u.email,name:u.display_name}});
+ const u=r.rows[0];res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-app.get('/me',auth,async(req,res)=>{const r=await pool.query('SELECT id,email,display_name,avatar_url FROM users WHERE id=$1',[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
-app.get('/users',auth,async(req,res)=>{const q='%'+String(req.query.q||'').trim()+'%';const r=await pool.query('SELECT id,email,display_name,avatar_url FROM users WHERE id<>$1 AND (display_name ILIKE $2 OR email ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,q]);res.json(r.rows);});
+app.get('/me',auth,async(req,res)=>{const r=await pool.query('SELECT id,email,username,display_name,avatar_url FROM users WHERE id=$1',[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
+app.get('/users',auth,async(req,res)=>{const q=String(req.query.q||'').trim();const like='%'+q+'%';const r=await pool.query('SELECT id,username,display_name,avatar_url FROM users WHERE id<>$1 AND (username ILIKE $2 OR display_name ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,like]);res.json(r.rows);});
 
 app.post('/chats',auth,async(req,res)=>{const title=String(req.body?.title||'Chat').trim();const group=!!req.body?.isGroup;const r=await pool.query('INSERT INTO chats(title,is_group,created_by) VALUES($1,$2,$3) RETURNING *',[title,group,req.user.id]);await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2)',[r.rows[0].id,req.user.id]);res.json(r.rows[0]);});
 
@@ -107,6 +103,7 @@ async function migrate(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )`,
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT',
     'ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by UUID',
