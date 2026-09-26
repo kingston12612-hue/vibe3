@@ -44,6 +44,15 @@ app.post('/auth/login',async(req,res)=>{try{
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
 app.get('/me',auth,async(req,res)=>{const r=await pool.query('SELECT id,email,username,display_name,avatar_url FROM users WHERE id=$1',[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
+app.put('/me',auth,async(req,res)=>{try{
+ const name=String(req.body?.name||'').trim();
+ const rawUsername=String(req.body?.username||'').trim().toLowerCase().replace(/^@/,'');
+ if(name.length<2)return res.status(400).json({error:'invalid_name'});
+ if(!/^[a-z0-9_]{3,30}$/.test(rawUsername))return res.status(400).json({error:'invalid_username'});
+ const r=await pool.query('UPDATE users SET display_name=$1, username=$2 WHERE id=$3 RETURNING id,email,username,display_name,avatar_url',[name,rawUsername,req.user.id]);
+ res.json(r.rows[0]);
+}catch(e){if(e.code==='23505'&&String(e.constraint||'').includes('username'))return res.status(409).json({error:'username_taken'});console.error(e);res.status(500).json({error:'profile_update_failed'});}});
+
 app.get('/users',auth,async(req,res)=>{const q=String(req.query.q||'').trim();const like='%'+q+'%';const r=await pool.query('SELECT id,username,display_name,avatar_url FROM users WHERE id<>$1 AND (username ILIKE $2 OR display_name ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,like]);res.json(r.rows);});
 
 app.post('/chats',auth,async(req,res)=>{const title=String(req.body?.title||'Chat').trim();const group=!!req.body?.isGroup;const r=await pool.query('INSERT INTO chats(title,is_group,created_by) VALUES($1,$2,$3) RETURNING *',[title,group,req.user.id]);await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2)',[r.rows[0].id,req.user.id]);res.json(r.rows[0]);});
