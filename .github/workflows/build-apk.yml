@@ -1,13 +1,13 @@
 name: Build vibe<3 APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
-  issues: write
 
 jobs:
   build:
@@ -19,46 +19,33 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
           flutter-version: "3.24.5"
+          channel: stable
           cache: true
 
-      - name: Generate Android project files
+      - name: Generate Android project
         run: flutter create --project-name vibe3 --org com.vibe --platforms android .
 
-      - name: Enable release internet access
-        run: python3 - <<'PY'
-from pathlib import Path
-p=Path('android/app/src/main/AndroidManifest.xml')
-s=p.read_text()
-marker='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
-if 'android.permission.INTERNET' not in s:
-    s=s.replace(marker, marker+'\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
-p.write_text(s)
-PY
+      - name: Enable internet
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/src/main/AndroidManifest.xml")
+          s = p.read_text()
+          marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          if "android.permission.INTERNET" not in s:
+              s = s.replace(marker, marker + '\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
+          p.write_text(s)
+          PY
 
-      - name: Dependencies
+      - name: Install dependencies
         run: flutter pub get
 
       - name: Build release APK
-        id: build_apk
-        continue-on-error: true
-        run: flutter build apk --release 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
-
-      - name: Publish build error
-        if: steps.build_apk.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh issue create --title "APK build failure ${{ github.sha }}" --body-file build.log
-
-      - name: Fail if APK build failed
-        if: steps.build_apk.outcome == 'failure'
-        run: exit 1
+        run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: vibe3-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-
-# release build trigger 2026-09-26
