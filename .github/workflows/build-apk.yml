@@ -60,3 +60,5 @@ PY
         with:
           name: vibe3-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+# release build trigger 2026-09-26
