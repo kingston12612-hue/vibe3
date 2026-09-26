@@ -23,7 +23,7 @@ class _VibeState extends State<VibeApp>{
  bool light=false,ready=false,logged=false;String name='Alex',email='',username='';
  @override void initState(){super.initState();load();}
  Future<void> load()async{final p=await SharedPreferences.getInstance();setState((){light=p.getBool('light')??false;name=p.getString('name')??'Alex';email=p.getString('email')??'';username=p.getString('username')??'';logged=p.getString('token')!=null;ready=true;});}
- Future<void> saveUser(String e,String n,String t)async{final p=await SharedPreferences.getInstance();final me=await Api.get('/me');final u='${me['username']??''}';await p.setString('token',t);await p.setString('email',e);await p.setString('name',n);await p.setString('username',u);setState((){logged=true;email=e;name=n;username=u;});}
+ Future<void> saveUser(String e,String n,String t)async{final p=await SharedPreferences.getInstance();await p.setString('token',t);await p.setString('email',e);await p.setString('name',n);final me=await Api.get('/me');final u='${me['username']??''}';await p.setString('username',u);setState((){logged=true;email=e;name=n;username=u;});}
  Future<void> theme(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('light',v);setState(()=>light=v);}
  Future<void> rename(String v)async{final p=await SharedPreferences.getInstance();await p.setString('name',v);setState(()=>name=v);}
  Future<void> updateProfile(String n,String u)async{final d=await Api.put('/me',{'name':n,'username':u});final p=await SharedPreferences.getInstance();final nn=d['display_name']??n;final uu=d['username']??u;await p.setString('name',nn.toString());await p.setString('username',uu.toString());setState((){name=nn.toString();username=uu.toString();});}
