@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
-const apiBase='https://vibe-api-production-7f4a.up.railway.app';
+const apiBase=String.fromEnvironment('VIBE_API',defaultValue:'https://vibe-api-production-7f4a.up.railway.app');
 const bg=Color(0xFF09090F),surface=Color(0xFF14141D),surface2=Color(0xFF1A1A26),stroke=Color(0xFF292938);
 const muted=Color(0xFF9696AC),purple=Color(0xFF8164FF),blue=Color(0xFF63A8FF),pink=Color(0xFFD96EFF);
 
