@@ -185,32 +185,228 @@ class _AuthState extends State<AuthScreen>{
   }
   @override Widget build(BuildContext context){
     final s=S(context);
-    return Scaffold(body:SafeArea(child:Stack(children:[
-      Positioned(top:-90,right:-90,child:_Glow(size:250,color:purple.withOpacity(.2))),
-      Positioned(bottom:-120,left:-100,child:_Glow(size:280,color:pink.withOpacity(.15))),
-      Center(child:SingleChildScrollView(padding:const EdgeInsets.all(22),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:480),child:Column(children:[
-        const _BrandMark(),const SizedBox(height:26),
-        Text(register?s.createAccount:s.welcomeBack,style:const TextStyle(fontSize:31,fontWeight:FontWeight.w900,letterSpacing:-.8)),
-        const SizedBox(height:7),Text(register?s.joinVibe:s.signInContinue,style:const TextStyle(color:muted)),
-        const SizedBox(height:22),
-        _GlassCard(child:Column(children:[
-          if(register)...[
-            TextField(controller:name,textCapitalization:TextCapitalization.words,decoration:InputDecoration(prefixIcon:const Icon(Icons.person_outline_rounded),hintText:s.nameHint)),const SizedBox(height:11),
-            TextField(controller:username,decoration:InputDecoration(prefixIcon:const Icon(Icons.alternate_email_rounded),hintText:s.usernameHint)),const SizedBox(height:11),
-          ],          TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:InputDecoration(prefixIcon:const Icon(Icons.mail_outline_rounded),hintText:s.email)),const SizedBox(height:11),
-          TextField(controller:pass,obscureText:!show1,decoration:InputDecoration(prefixIcon:const Icon(Icons.lock_outline_rounded),hintText:s.password,suffixIcon:IconButton(onPressed:()=>setState(()=>show1=!show1),icon:Icon(show1?Icons.visibility_off_outlined:Icons.visibility_outlined)))),
-          if(register)...[
-            const SizedBox(height:11),
-            TextField(controller:pass2,obscureText:!show2,decoration:InputDecoration(prefixIcon:const Icon(Icons.lock_reset_outlined),hintText:s.repeatPassword,suffixIcon:IconButton(onPressed:()=>setState(()=>show2=!show2),icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined)))),
+    final dark=Theme.of(context).brightness==Brightness.dark;
+    return Scaffold(
+      body: SafeArea(
+        child: Stack(
+          children:[
+            Positioned(top:-120,right:-90,child:_Glow(size:300,color:purple.withOpacity(.20))),
+            Positioned(bottom:-140,left:-110,child:_Glow(size:320,color:pink.withOpacity(.14))),
+            Positioned(top:170,left:-150,child:_Glow(size:230,color:blue.withOpacity(.06))),
+            SingleChildScrollView(
+              padding:const EdgeInsets.fromLTRB(24,22,24,30),
+              child:Center(
+                child:ConstrainedBox(
+                  constraints:const BoxConstraints(maxWidth:520),
+                  child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Row(
+                        children:[
+                          const _BrandMark(),
+                          const SizedBox(width:14),
+                          const Column(
+                            crossAxisAlignment:CrossAxisAlignment.start,
+                            children:[
+                              Text('vibe<3',style:TextStyle(fontSize:27,fontWeight:FontWeight.w900,letterSpacing:-1.2)),
+                              SizedBox(height:2),
+                              Text('private. personal. yours.',style:TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w600)),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height:42),
+                      Text(
+                        register?s.createAccount:s.welcomeBack,
+                        style:const TextStyle(fontSize:36,fontWeight:FontWeight.w900,letterSpacing:-1.2,height:1.05),
+                      ),
+                      const SizedBox(height:9),
+                      Text(
+                        register?s.joinVibe:s.signInContinue,
+                        style:const TextStyle(color:muted,fontSize:14,height:1.45),
+                      ),
+                      const SizedBox(height:26),
+                      Row(
+                        children:[
+                          _AuthMode(
+                            label:s.signIn,
+                            active:!register,
+                            onTap:busy?null:()=>setState(()=>register=false),
+                          ),
+                          const SizedBox(width:10),
+                          _AuthMode(
+                            label:s.createAccount,
+                            active:register,
+                            onTap:busy?null:()=>setState(()=>register=true),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height:20),
+                      if(register)...[
+                        _AuthField(
+                          controller:name,
+                          icon:Icons.person_outline_rounded,
+                          hint:s.nameHint,
+                          textCapitalization:TextCapitalization.words,
+                        ),
+                        const SizedBox(height:11),
+                        _AuthField(
+                          controller:username,
+                          icon:Icons.alternate_email_rounded,
+                          hint:s.usernameHint,
+                        ),
+                        const SizedBox(height:11),
+                      ],
+                      _AuthField(
+                        controller:email,
+                        icon:Icons.mail_outline_rounded,
+                        hint:s.email,
+                        keyboardType:TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height:11),
+                      _AuthField(
+                        controller:pass,
+                        icon:Icons.lock_outline_rounded,
+                        hint:s.password,
+                        obscureText:!show1,
+                        suffix:IconButton(
+                          onPressed:busy?null:()=>setState(()=>show1=!show1),
+                          icon:Icon(show1?Icons.visibility_off_outlined:Icons.visibility_outlined),
+                        ),
+                      ),
+                      if(register)...[
+                        const SizedBox(height:11),
+                        _AuthField(
+                          controller:pass2,
+                          icon:Icons.lock_reset_outlined,
+                          hint:s.repeatPassword,
+                          obscureText:!show2,
+                          suffix:IconButton(
+                            onPressed:busy?null:()=>setState(()=>show2=!show2),
+                            icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height:18),
+                      SizedBox(
+                        width:double.infinity,
+                        child:DecoratedBox(
+                          decoration:BoxDecoration(
+                            gradient:const LinearGradient(
+                              begin:Alignment.centerLeft,
+                              end:Alignment.centerRight,
+                              colors:[purple,pink],
+                            ),
+                            borderRadius:BorderRadius.circular(18),
+                            boxShadow:[
+                              BoxShadow(
+                                color:purple.withOpacity(.24),
+                                blurRadius:26,
+                                offset:const Offset(0,10),
+                              ),
+                            ],
+                          ),
+                          child:FilledButton(
+                            onPressed:busy?null:submit,
+                            style:FilledButton.styleFrom(
+                              backgroundColor:Colors.transparent,
+                              shadowColor:Colors.transparent,
+                              minimumSize:const Size.fromHeight(56),
+                              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+                            ),
+                            child:Row(
+                              mainAxisAlignment:MainAxisAlignment.center,
+                              children:[
+                                if(busy)
+                                  const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
+                                else
+                                  Icon(register?Icons.arrow_forward_rounded:Icons.login_rounded,size:20,color:Colors.white),
+                                const SizedBox(width:9),
+                                Text(
+                                  busy?s.wait:(register?s.createAccount:s.signIn),
+                                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height:16),
+                      Row(
+                        mainAxisAlignment:MainAxisAlignment.center,
+                        children:[
+                          Icon(Icons.lock_outline_rounded,size:13,color:(dark?muted:Colors.black45)),
+                          const SizedBox(width:6),
+                          Text(
+                            register?s.securitySub:s.securitySub,
+                            textAlign:TextAlign.center,
+                            style:const TextStyle(color:muted,fontSize:11.5,height:1.3),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height:28),
+                      Center(
+                        child:TextButton(
+                          onPressed:busy?null:()=>setState(()=>register=!register),
+                          child:Text(
+                            register?s.alreadyHave:s.newToVibe,
+                            style:const TextStyle(fontWeight:FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
-          const SizedBox(height:16),
-          FilledButton(onPressed:busy?null:submit,child:Text(busy?s.wait:(register?s.createAccount:s.signIn),style:const TextStyle(fontWeight:FontWeight.w800))),
-        ])),
-        const SizedBox(height:10),
-        TextButton(onPressed:busy?null:()=>setState(()=>register=!register),child:Text(register?s.alreadyHave:s.newToVibe,style:const TextStyle(fontWeight:FontWeight.w700))),
-      ])))),
-    ])));
+        ),
+      ),
+    );
   }
+}
+
+class _AuthMode extends StatelessWidget{
+  final String label;final bool active;final VoidCallback? onTap;
+  const _AuthMode({required this.label,required this.active,required this.onTap});
+  @override Widget build(BuildContext context)=>Expanded(
+    child:Material(
+      color:active?purple.withOpacity(.14):Colors.transparent,
+      borderRadius:BorderRadius.circular(16),
+      child:InkWell(
+        onTap:onTap,
+        borderRadius:BorderRadius.circular(16),
+        child:Container(
+          height:46,
+          alignment:Alignment.center,
+          decoration:BoxDecoration(
+            borderRadius:BorderRadius.circular(16),
+            border:Border.all(color:active?purple.withOpacity(.55):stroke),
+          ),
+          child:Text(label,style:TextStyle(fontWeight:FontWeight.w900,color:active?null:muted)),
+        ),
+      ),
+    ),
+  );
+}
+
+class _AuthField extends StatelessWidget{
+  final TextEditingController controller;final IconData icon;final String hint;final bool obscureText;final Widget? suffix;
+  final TextInputType? keyboardType;final TextCapitalization textCapitalization;
+  const _AuthField({required this.controller,required this.icon,required this.hint,this.obscureText=false,this.suffix,this.keyboardType,this.textCapitalization=TextCapitalization.none});
+  @override Widget build(BuildContext context)=>TextField(
+    controller:controller,
+    obscureText:obscureText,
+    keyboardType:keyboardType,
+    textCapitalization:textCapitalization,
+    style:const TextStyle(fontWeight:FontWeight.w600),
+    decoration:InputDecoration(
+      prefixIcon:Icon(icon),
+      suffixIcon:suffix,
+      hintText:hint,
+      contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:17),
+    ),
+  );
 }
 
 String friendlyError(Object ex,AppStrings s){
