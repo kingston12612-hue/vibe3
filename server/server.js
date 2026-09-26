@@ -27,7 +27,7 @@ app.post('/auth/register',async(req,res)=>{try{
  const hash=await bcrypt.hash(password,12);
  try{
    const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,username,display_name',[email,username,name,hash]);
-   const u=r.rows[0];
+   var u=r.rows[0];
  }catch(e){
    if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
    if(e.code==='23505' && String(e.constraint||'').includes('username')) return res.status(409).json({error:'username_taken'});
@@ -78,7 +78,7 @@ app.post('/chats/direct',auth,async(req,res)=>{try{
  res.json({...c.rows[0],preview:''});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview FROM chats c JOIN chat_members cm ON cm.chat_id=c.id WHERE cm.user_id=$1 ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
+app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview FROM chats c JOIN chat_members cm ON cm.chat_id=c.id WHERE cm.user_id=$1 AND (c.is_group=true OR (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)>1) ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/members',auth,async(req,res)=>{await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.params.id,req.body.userId]);res.json({ok:true});});
 app.get('/chats/:id/messages',auth,async(req,res)=>{const r=await pool.query('SELECT m.*,u.display_name sender_name FROM messages m JOIN users u ON u.id=m.sender_id JOIN chat_members cm ON cm.chat_id=m.chat_id WHERE m.chat_id=$1 AND cm.user_id=$2 ORDER BY m.created_at ASC LIMIT 200',[req.params.id,req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/messages',auth,async(req,res)=>{try{
