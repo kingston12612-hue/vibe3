@@ -26,6 +26,17 @@ jobs:
       - name: Generate Android project
         run: flutter create --project-name vibe3 --org com.vibe --platforms android .
 
+      - name: Set Android compile SDK
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("android/app/build.gradle")
+          s = p.read_text()
+          s = s.replace("compileSdk = flutter.compileSdkVersion", "compileSdk = 35")
+          s = s.replace("compileSdk flutter.compileSdkVersion", "compileSdk 35")
+          p.write_text(s)
+          PY
+
       - name: Enable internet
         run: |
           python3 - <<'PY'
