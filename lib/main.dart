@@ -13,7 +13,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static Future<dynamic> get(String path)async{final r=await http.get(Uri.parse('$apiBase$path'),headers:await headers()).timeout(const Duration(seconds:15));if(r.statusCode<200||r.statusCode>=300)throw Exception('http_${r.statusCode}');return jsonDecode(r.body);}
- static Future<dynamic> post(String path,Map<String,dynamic> body)async{final r=await http.post(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:15));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?d['error']:'http_${r.statusCode}');return d;}
+ static Future<dynamic> post(String path,Map<String,dynamic> body)async{try{final r=await http.post(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:15));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;}catch(e){rethrow;}}
 }
 
 class VibeApp extends StatefulWidget{const VibeApp({super.key});@override State<VibeApp> createState()=>_VibeState();}
@@ -48,8 +48,8 @@ class _AuthState extends State<AuthScreen>{
    final d=await Api.post('/auth/${register?'register':'login'}',register?{'email':e,'name':n,'password':pw}:{'email':e,'password':pw});
    await widget.onLogin(e,d['user']['name']??n,d['token']);
   }catch(ex){
-   final s=ex.toString();
-   err(s.contains('email_exists')?'Этот email уже зарегистрирован':s.contains('invalid_credentials')?'Неверный email или пароль':'Не удалось выполнить запрос');
+   final s=ex.toString().replaceFirst('Exception: ','');
+   err(s.contains('email_exists')?'Этот email уже зарегистрирован':s.contains('invalid_credentials')?'Неверный email или пароль':s.contains('invalid_input')?'Проверьте имя, email и пароль':s.contains('http_')?'Сервер вернул ошибку: $s':s.toLowerCase().contains('socket')||s.toLowerCase().contains('timed out')?'Нет соединения с сервером vibe<3':'Не удалось выполнить запрос');
   }finally{
    if(mounted)setState(()=>busy=false);
   }
