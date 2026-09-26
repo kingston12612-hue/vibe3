@@ -41,9 +41,9 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p = Path("android/app/src/main/res/values/strings.xml")
+          p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
-          s = s.replace('<string name="app_name">vibe3</string>', '<string name="app_name">Vibe&lt;3</string>')
+          s = s.replace('android:label="vibe3"', 'android:label="Vibe&lt;3"')
           p.write_text(s)
           PY
 
