@@ -45,13 +45,21 @@ app.post('/auth/login',async(req,res)=>{try{
 
 app.get('/me',auth,async(req,res)=>{const r=await pool.query('SELECT id,email,username,display_name,avatar_url FROM users WHERE id=$1',[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
 app.put('/me',auth,async(req,res)=>{try{
- const name=String(req.body?.name||'').trim();
- const rawUsername=String(req.body?.username||'').trim().toLowerCase().replace(/^@/,'');
+ const name=String(req.body?.name??'').trim();
+ const rawUsername=String(req.body?.username??'').trim().toLowerCase().replace(/^@/,'');
  if(name.length<2)return res.status(400).json({error:'invalid_name'});
  if(!/^[a-z0-9_]{3,30}$/.test(rawUsername))return res.status(400).json({error:'invalid_username'});
+ const current=await pool.query('SELECT id FROM users WHERE id=$1',[req.user.id]);
+ if(!current.rowCount)return res.status(404).json({error:'user_not_found'});
  const r=await pool.query('UPDATE users SET display_name=$1, username=$2 WHERE id=$3 RETURNING id,email,username,display_name,avatar_url',[name,rawUsername,req.user.id]);
+ if(!r.rowCount)return res.status(404).json({error:'user_not_found'});
  res.json(r.rows[0]);
-}catch(e){if(e.code==='23505'&&String(e.constraint||'').includes('username'))return res.status(409).json({error:'username_taken'});console.error(e);res.status(500).json({error:'profile_update_failed'});}});
+}catch(e){
+ console.error('profile_update_failed',e);
+ if(e.code==='23505' && (String(e.constraint||'').includes('username') || String(e.detail||'').toLowerCase().includes('username'))) return res.status(409).json({error:'username_taken'});
+ if(e.code==='22P02') return res.status(400).json({error:'invalid_user_id'});
+ res.status(500).json({error:'profile_update_failed'});
+}});
 
 app.get('/users',auth,async(req,res)=>{const q=String(req.query.q||'').trim();const like='%'+q+'%';const r=await pool.query('SELECT id,username,display_name,avatar_url FROM users WHERE id<>$1 AND (username ILIKE $2 OR display_name ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,like]);res.json(r.rows);});
 
