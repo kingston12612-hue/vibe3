@@ -27,7 +27,7 @@ app.post('/auth/register',async(req,res)=>{try{
  const hash=await bcrypt.hash(password,12);
  try{
    const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,username,display_name',[email,username,name,hash]);
-   u=r.rows[0];
+   const u=r.rows[0];
  }catch(e){
    if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
    if(e.code==='23505' && String(e.constraint||'').includes('username')) return res.status(409).json({error:'username_taken'});
@@ -145,3 +145,5 @@ async function migrate(){
 migrate().then(()=>server.listen(process.env.PORT||3000,()=>console.log('vibe<3 server ready'))).catch(e=>{console.error(e);process.exit(1);});
 
 // deployment trigger: profile username update is live
+
+// force Railway to deploy current main with the live profile update endpoint
