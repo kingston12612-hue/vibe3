@@ -24,10 +24,19 @@ app.post('/auth/register',async(req,res)=>{try{
  if(!email.includes('@')||!name||name.length<2||password.length<6)return res.status(400).json({error:'invalid_input'});
  const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);if(exists.rowCount)return res.status(409).json({error:'email_exists'});
  const hash=await bcrypt.hash(password,12);
- const username=email.split('@')[0].replace(/[^a-zA-Z0-9_]/g,'_').slice(0,30)||`user_${Date.now()}`;
+ const baseUsername=email.split('@')[0].replace(/[^a-zA-Z0-9_]/g,'_').slice(0,24)||'user';
  let u;
- try{const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,display_name',[email,username,name,hash]);u=r.rows[0];}
- catch(e){if(e.code==='23505')return res.status(409).json({error:'email_exists'});throw e;}
+ for(let attempt=0;attempt<5;attempt++){
+   const username=(attempt===0?baseUsername:`${baseUsername}_${Math.floor(Math.random()*9000)+1000}`).slice(0,30);
+   try{
+     const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,display_name',[email,username,name,hash]);
+     u=r.rows[0]; break;
+   }catch(e){
+     if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
+     if(e.code!=='23505' || attempt===4) throw e;
+   }
+ }
+ if(!u) return res.status(500).json({error:'registration_failed'});
  res.json({token:token(u),user:{id:u.id,email:u.email,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
