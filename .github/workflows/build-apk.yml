@@ -26,6 +26,17 @@ jobs:
       - name: Generate Android project files
         run: flutter create --project-name vibe3 --org com.vibe --platforms android .
 
+      - name: Enable release internet access
+        run: python3 - <<'PY'
+from pathlib import Path
+p=Path('android/app/src/main/AndroidManifest.xml')
+s=p.read_text()
+marker='<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+if 'android.permission.INTERNET' not in s:
+    s=s.replace(marker, marker+'\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
+p.write_text(s)
+PY
+
       - name: Dependencies
         run: flutter pub get
 
