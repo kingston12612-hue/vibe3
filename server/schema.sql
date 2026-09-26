@@ -32,3 +32,11 @@ CREATE TABLE IF NOT EXISTS messages(
 );
 CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type TEXT NOT NULL DEFAULT 'text';
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS media_url TEXT;
+CREATE TABLE IF NOT EXISTS chat_members(chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),PRIMARY KEY(chat_id,user_id));
+CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id);
