@@ -297,8 +297,7 @@ class _AuthState extends State<AuthScreen>{
                               child:_AuthField(
                                 controller:pass2,
                                 icon:Icons.lock_reset_outlined,
-                                hint:s.repeatPassword,
-                                obscureText:!show2,
+                                hint:s.repeatPassword,                                obscureText:!show2,
                                 suffix:IconButton(
                                   onPressed:busy?null:()=>setState(()=>show2=!show2),
                                   icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined),
@@ -597,8 +596,7 @@ class _ChatState extends State<ChatPage>{
   Future<void> load()async{
     try{
       final me=await Api.get('/me');myId=(me['id']??'').toString();
-      final a=await Api.get('/chats/'+widget.chat.id+'/messages');
-      msgs=(a as List).map((x)=>Msg((x['id']??'').toString(),(x['body']??'').toString(),(x['sender_name']??'').toString(),(x['sender_id']??'').toString()==myId)).toList();
+      final a=await Api.get('/chats/'+widget.chat.id+'/messages');      msgs=(a as List).map((x)=>Msg((x['id']??'').toString(),(x['body']??'').toString(),(x['sender_name']??'').toString(),(x['sender_id']??'').toString()==myId)).toList();
       await connectRealtime();
     }catch(_){}
     if(mounted){setState(()=>loading=false);WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());}
@@ -897,8 +895,7 @@ class _VibeAnimatedBackgroundState extends State<VibeAnimatedBackground> with Si
 }
 
 class _EntryAnimation extends StatefulWidget{
-  final Widget child;final Duration delay;
-  const _EntryAnimation({required this.child,required this.delay});
+  final Widget child;final Duration delay;  const _EntryAnimation({required this.child,required this.delay});
   @override State<_EntryAnimation> createState()=>_EntryAnimationState();
 }
 class _EntryAnimationState extends State<_EntryAnimation> with SingleTickerProviderStateMixin{
@@ -961,7 +958,7 @@ class _CircleActionState extends State<_CircleAction>{
       onTapCancel:()=>setState(()=>pressed=false),
       onTapUp:(_)=>setState(()=>pressed=false),
       child:AnimatedScale(
-        scale:pressed?.90:1,
+        scale:pressed ? .90 : 1,
         duration:const Duration(milliseconds:90),
         curve:Curves.easeOut,
         child:Material(
