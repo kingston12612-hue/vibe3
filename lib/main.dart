@@ -197,8 +197,7 @@ class _AuthState extends State<AuthScreen>{
           if(register)...[
             TextField(controller:name,textCapitalization:TextCapitalization.words,decoration:InputDecoration(prefixIcon:const Icon(Icons.person_outline_rounded),hintText:s.nameHint)),const SizedBox(height:11),
             TextField(controller:username,decoration:InputDecoration(prefixIcon:const Icon(Icons.alternate_email_rounded),hintText:s.usernameHint)),const SizedBox(height:11),
-          ],
-          TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:InputDecoration(prefixIcon:const Icon(Icons.mail_outline_rounded),hintText:s.email)),const SizedBox(height:11),
+          ],          TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:InputDecoration(prefixIcon:const Icon(Icons.mail_outline_rounded),hintText:s.email)),const SizedBox(height:11),
           TextField(controller:pass,obscureText:!show1,decoration:InputDecoration(prefixIcon:const Icon(Icons.lock_outline_rounded),hintText:s.password,suffixIcon:IconButton(onPressed:()=>setState(()=>show1=!show1),icon:Icon(show1?Icons.visibility_off_outlined:Icons.visibility_outlined)))),
           if(register)...[
             const SizedBox(height:11),
@@ -295,7 +294,7 @@ class _ChatsState extends State<Chats>{
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(18,14,12,8),child:Row(children:[
         const _VibeWordmark(),const Spacer(),
-        IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)onOpen(x);},icon:const Icon(Icons.search_rounded)),
+        IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)widget.onOpen(x);},icon:const Icon(Icons.search_rounded)),
         IconButton(tooltip:s.newChat,onPressed:widget.onNewChat,icon:const Icon(Icons.add_comment_rounded)),
       ])),
       Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v)=>setState(()=>q=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:s.searchChats))),
@@ -397,8 +396,7 @@ class _ChatState extends State<ChatPage>{
     return Scaffold(
       appBar:AppBar(titleSpacing:0,title:InkWell(borderRadius:BorderRadius.circular(16),onTap:()=>showContact(context),child:Padding(padding:const EdgeInsets.symmetric(horizontal:5,vertical:5),child:Row(children:[
         Avatar(name:widget.chat.name,size:40),const SizedBox(width:9),
-        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11))]),
-      ]))),actions:[
+        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11))]),      ]))),actions:[
         IconButton(tooltip:s.voiceCall,onPressed:()=>openCall(context,false),icon:const Icon(Icons.call_outlined)),
         IconButton(tooltip:s.profile,onPressed:()=>showChatMenu(context),icon:const Icon(Icons.more_horiz_rounded)),
       ]),
