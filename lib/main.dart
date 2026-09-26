@@ -32,10 +32,89 @@ ThemeData themeData(bool dark)=>ThemeData(brightness:dark?Brightness.dark:Bright
 
 class AuthScreen extends StatefulWidget{final Future<void> Function(String,String,String) onLogin;const AuthScreen({super.key,required this.onLogin});@override State<AuthScreen> createState()=>_AuthState();}
 class _AuthState extends State<AuthScreen>{
- bool register=false,busy=false;final email=TextEditingController(),name=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+ bool register=false,busy=false;
+ final email=TextEditingController(),name=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+
  void err(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
- Future<void> submit()async{final e=email.text.trim().toLowerCase(),pw=pass.text,n=name.text.trim();if(!e.contains('@')||!e.contains('.')){err('Введите корректный email');return;}if(pw.length<6){err('Пароль должен быть минимум 6 символов');return;}if(register&&n.length<2){err('Введите имя');return;}if(register&&pass2.text!=pw){err('Пароли не совпадают');return;}setState(()=>busy=true);try{final d=await Api.post('/auth/${register?'register':'login'}',register?{'email':e,'name':n,'password':pw}:{'email':e,'password':pw});await widget.onLogin(e,d['user']['name']??n,d['token']);}catch(ex){final s=ex.toString();err(s.contains('email_exists')?'Этот email уже зарегистрирован':s.contains('invalid_credentials')?'Неверный email или пароль':'Не удалось выполнить запрос');}finally{if(mounted)setState(()=>busy=false);}}
- @override Widget build(BuildContext c)=>Scaffold(body:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:460),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Container(height:92,alignment:Alignment.center,decoration:BoxDecoration(borderRadius:BorderRadius.circular(28),gradient:const LinearGradient(colors:[purple,pink])),child:const Text('v<3',style:TextStyle(color:Colors.white,fontSize:32,fontWeight:FontWeight.w900))),const SizedBox(height:24),Text(register?'Create your account':'Welcome back',textAlign:TextAlign.center,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900)),const SizedBox(height:8),Text(register?'Join the vibe<3 community':'Sign in to continue',textAlign:TextAlign.center,style:const TextStyle(color:muted)),const SizedBox(height:24),if(register)Padding(padding:const EdgeInsets.only(bottom:12),child:TextField(controller:name,decoration:const InputDecoration(prefixIcon:Icon(Icons.person_outline),hintText:'Name'))),TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(prefixIcon:Icon(Icons.email_outlined),hintText:'Email')),const SizedBox(height:12),TextField(controller:pass,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_outline),hintText:'Password')),if(register)Padding(padding:const EdgeInsets.only(top:12),child:TextField(controller:pass2,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_reset),hintText:'Repeat password'))),const SizedBox(height:18),FilledButton(onPressed:busy?null:submit,style:FilledButton.styleFrom(minimumSize:const Size.fromHeight(54),backgroundColor:purple),child:Text(busy?'Please wait...':register?'Create account':'Sign in')),TextButton(onPressed:busy?null:()=>setState(()=>register=!register),child:Text(register?'Already have an account? Sign in':'New to vibe<3? Create account')),const SizedBox(height:10),const Text('Аккаунт сохраняется на сервере vibe<3.',textAlign:TextAlign.center,style:TextStyle(color:muted,fontSize:12))]))))));}}
+
+ Future<void> submit()async{
+  final e=email.text.trim().toLowerCase(),pw=pass.text,n=name.text.trim();
+  if(!e.contains('@')||!e.contains('.')){err('Введите корректный email');return;}
+  if(pw.length<6){err('Пароль должен быть минимум 6 символов');return;}
+  if(register&&n.length<2){err('Введите имя');return;}
+  if(register&&pass2.text!=pw){err('Пароли не совпадают');return;}
+  setState(()=>busy=true);
+  try{
+   final d=await Api.post('/auth/${register?'register':'login'}',register?{'email':e,'name':n,'password':pw}:{'email':e,'password':pw});
+   await widget.onLogin(e,d['user']['name']??n,d['token']);
+  }catch(ex){
+   final s=ex.toString();
+   err(s.contains('email_exists')?'Этот email уже зарегистрирован':s.contains('invalid_credentials')?'Неверный email или пароль':'Не удалось выполнить запрос');
+  }finally{
+   if(mounted)setState(()=>busy=false);
+  }
+ }
+
+ @override
+ Widget build(BuildContext c){
+  return Scaffold(
+   body:SafeArea(
+    child:Center(
+     child:SingleChildScrollView(
+      padding:const EdgeInsets.all(24),
+      child:ConstrainedBox(
+       constraints:const BoxConstraints(maxWidth:460),
+       child:Column(
+        crossAxisAlignment:CrossAxisAlignment.stretch,
+        children:[
+         Container(
+          height:92,
+          alignment:Alignment.center,
+          decoration:BoxDecoration(
+           borderRadius:BorderRadius.circular(28),
+           gradient:const LinearGradient(colors:[purple,pink]),
+          ),
+          child:const Text('v<3',style:TextStyle(color:Colors.white,fontSize:32,fontWeight:FontWeight.w900)),
+         ),
+         const SizedBox(height:24),
+         Text(register?'Create your account':'Welcome back',textAlign:TextAlign.center,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900)),
+         const SizedBox(height:8),
+         Text(register?'Join the vibe<3 community':'Sign in to continue',textAlign:TextAlign.center,style:const TextStyle(color:muted)),
+         const SizedBox(height:24),
+         if(register)
+          Padding(
+           padding:const EdgeInsets.only(bottom:12),
+           child:TextField(controller:name,decoration:const InputDecoration(prefixIcon:Icon(Icons.person_outline),hintText:'Name')),
+          ),
+         TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(prefixIcon:Icon(Icons.email_outlined),hintText:'Email')),
+         const SizedBox(height:12),
+         TextField(controller:pass,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_outline),hintText:'Password')),
+         if(register)
+          Padding(
+           padding:const EdgeInsets.only(top:12),
+           child:TextField(controller:pass2,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_reset),hintText:'Repeat password')),
+          ),
+         const SizedBox(height:18),
+         FilledButton(
+          onPressed:busy?null:submit,
+          style:FilledButton.styleFrom(minimumSize:const Size.fromHeight(54),backgroundColor:purple),
+          child:Text(busy?'Please wait...':register?'Create account':'Sign in'),
+         ),
+         TextButton(
+          onPressed:busy?null:()=>setState(()=>register=!register),
+          child:Text(register?'Already have an account? Sign in':'New to vibe<3? Create account'),
+         ),
+         const SizedBox(height:10),
+         const Text('Аккаунт сохраняется на сервере vibe<3.',textAlign:TextAlign.center,style:TextStyle(color:muted,fontSize:12)),
+        ],
+       ),
+      ),
+     ),
+    ),
+   ),
+  );
+ }
+}
 class Chat{final String id;String name,preview,time;bool online;int unread;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0});}
 class UserX{final String id,name,email;UserX(this.id,this.name,this.email);}
 class Msg{final String id,text,sender;final bool mine;Msg(this.id,this.text,this.sender,this.mine);}
