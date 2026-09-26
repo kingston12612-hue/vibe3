@@ -45,7 +45,7 @@ class _AuthState extends State<AuthScreen>{
   if(!e.contains('@')||!e.contains('.')){err('Введите корректный email');return;}
   if(pw.length<6){err('Пароль должен быть минимум 6 символов');return;}
   if(register&&n.length<2){err('Введите имя');return;}
-  if(register&&!RegExp(r'^[a-z0-9_]{3,30}
+  if(register&&!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(u)){err('Юзернейм: 3–30 символов, только a-z, 0-9 и _');return;}
   if(register&&pass2.text!=pw){err('Пароли не совпадают');return;}
   setState(()=>busy=true);
   try{
