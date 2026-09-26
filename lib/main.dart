@@ -205,7 +205,7 @@ class _AuthState extends State<AuthScreen>{
             TextField(controller:pass2,obscureText:!show2,decoration:InputDecoration(prefixIcon:const Icon(Icons.lock_reset_outlined),hintText:s.repeatPassword,suffixIcon:IconButton(onPressed:()=>setState(()=>show2=!show2),icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined)))),
           ],
           const SizedBox(height:16),
-          FilledButton(onPressed:busy?null:submit,child:Text(busy?s.wait:(register?s.createAccount:s.signIn),style:const TextStyle(fontWeight:FontWeight.w850))),
+          FilledButton(onPressed:busy?null:submit,child:Text(busy?s.wait:(register?s.createAccount:s.signIn),style:const TextStyle(fontWeight:FontWeight.w800))),
         ])),
         const SizedBox(height:10),
         TextButton(onPressed:busy?null:()=>setState(()=>register=!register),child:Text(register?s.alreadyHave:s.newToVibe,style:const TextStyle(fontWeight:FontWeight.w700))),
@@ -330,7 +330,7 @@ class Tile extends StatelessWidget{
     child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
       Avatar(name:chat.name,size:56),const SizedBox(width:12),
       Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w850)),
+        Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),
         const SizedBox(height:4),
         Text(chat.preview.isEmpty?S(context).active:chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13)),
       ])),
@@ -397,7 +397,7 @@ class _ChatState extends State<ChatPage>{
     return Scaffold(
       appBar:AppBar(titleSpacing:0,title:InkWell(borderRadius:BorderRadius.circular(16),onTap:()=>showContact(context),child:Padding(padding:const EdgeInsets.symmetric(horizontal:5,vertical:5),child:Row(children:[
         Avatar(name:widget.chat.name,size:40),const SizedBox(width:9),
-        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w850)),Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11))]),
+        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11))]),
       ]))),actions:[
         IconButton(tooltip:s.voiceCall,onPressed:()=>openCall(context,false),icon:const Icon(Icons.call_outlined)),
         IconButton(tooltip:s.profile,onPressed:()=>showChatMenu(context),icon:const Icon(Icons.more_horiz_rounded)),
@@ -477,7 +477,7 @@ class _ContactsState extends State<Contacts>{
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
         itemBuilder:(_,i){final u=people[i];return Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
-          Avatar(name:u.name,size:52),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(u.name,style:const TextStyle(fontWeight:FontWeight.w850)),const SizedBox(height:3),Text('@'+u.username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:15),
+          Avatar(name:u.name,size:52),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:3),Text('@'+u.username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:15),
         ]))));},
       )),
     ]);
@@ -574,7 +574,7 @@ class _BrandMark extends StatelessWidget{
 }
 class _VibeWordmark extends StatelessWidget{
   const _VibeWordmark();
-  @override Widget build(BuildContext context)=>const Text('vibe<3',style:TextStyle(fontSize:28,fontWeight:FontWeight.w950,letterSpacing:-1.1));
+  @override Widget build(BuildContext context)=>const Text('vibe<3',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900,letterSpacing:-1.1));
 }
 class _GlassCard extends StatelessWidget{
   final Widget child;const _GlassCard({required this.child});
