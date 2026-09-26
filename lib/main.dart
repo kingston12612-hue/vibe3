@@ -19,30 +19,126 @@ class Api{
 
 class VibeApp extends StatefulWidget{const VibeApp({super.key});@override State<VibeApp> createState()=>_VibeState();}
 class _VibeState extends State<VibeApp>{
- bool light=false,ready=false,logged=false;String name='Alex',email='';
+ bool light=false,ready=false,logged=false;String name='Alex',email='',username='';
  @override void initState(){super.initState();load();}
- Future<void> load()async{final p=await SharedPreferences.getInstance();setState((){light=p.getBool('light')??false;name=p.getString('name')??'Alex';email=p.getString('email')??'';logged=p.getString('token')!=null;ready=true;});}
- Future<void> saveUser(String e,String n,String t)async{final p=await SharedPreferences.getInstance();await p.setString('token',t);await p.setString('email',e);await p.setString('name',n);setState((){logged=true;email=e;name=n;});}
+ Future<void> load()async{final p=await SharedPreferences.getInstance();setState((){light=p.getBool('light')??false;name=p.getString('name')??'Alex';email=p.getString('email')??'';username=p.getString('username')??'';logged=p.getString('token')!=null;ready=true;});}
+ Future<void> saveUser(String e,String n,String t)async{final p=await SharedPreferences.getInstance();final me=await Api.get('/me');final u='${me['username']??''}';await p.setString('token',t);await p.setString('email',e);await p.setString('name',n);await p.setString('username',u);setState((){logged=true;email=e;name=n;username=u;});}
  Future<void> theme(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('light',v);setState(()=>light=v);}
  Future<void> rename(String v)async{final p=await SharedPreferences.getInstance();await p.setString('name',v);setState(()=>name=v);}
  Future<void> logout()async{final p=await SharedPreferences.getInstance();await p.remove('token');setState(()=>logged=false);}
  @override Widget build(BuildContext c){if(!ready)return const MaterialApp(home:Scaffold(backgroundColor:bg,body:Center(child:CircularProgressIndicator())));
- return MaterialApp(debugShowCheckedModeBanner:false,title:'vibe<3',themeMode:light?ThemeMode.light:ThemeMode.dark,darkTheme:themeData(true),theme:themeData(false),home:logged?Shell(name:name,light:light,onTheme:theme,onName:rename,onLogout:logout):AuthScreen(onLogin:saveUser));}
+ return MaterialApp(debugShowCheckedModeBanner:false,title:'vibe<3',themeMode:light?ThemeMode.light:ThemeMode.dark,darkTheme:themeData(true),theme:themeData(false),home:logged?Shell(name:name,username:username,light:light,onTheme:theme,onName:rename,onLogout:logout):AuthScreen(onLogin:saveUser));}
 }
 ThemeData themeData(bool dark)=>ThemeData(brightness:dark?Brightness.dark:Brightness.light,scaffoldBackgroundColor:dark?bg:const Color(0xFFF7F7FB),useMaterial3:true,colorScheme:ColorScheme.fromSeed(seedColor:purple,brightness:dark?Brightness.dark:Brightness.light),appBarTheme:AppBarTheme(backgroundColor:dark?bg:const Color(0xFFF7F7FB),elevation:0),navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?surface:Colors.white),inputDecorationTheme:InputDecorationTheme(filled:true,fillColor:dark?surface2:Colors.white,border:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:BorderSide(color:dark?stroke:Colors.black12)),focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(18),borderSide:const BorderSide(color:purple))));
 
 class AuthScreen extends StatefulWidget{final Future<void> Function(String,String,String) onLogin;const AuthScreen({super.key,required this.onLogin});@override State<AuthScreen> createState()=>_AuthState();}
 class _AuthState extends State<AuthScreen>{
  bool register=false,busy=false;
- final email=TextEditingController(),name=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+ final email=TextEditingController(),name=TextEditingController(),username=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
 
  void err(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
 
  Future<void> submit()async{
-  final e=email.text.trim().toLowerCase(),pw=pass.text,n=name.text.trim();
+  final e=email.text.trim().toLowerCase(),pw=pass.text,n=name.text.trim(),u=username.text.trim().toLowerCase().replaceFirst('@','');
   if(!e.contains('@')||!e.contains('.')){err('Введите корректный email');return;}
   if(pw.length<6){err('Пароль должен быть минимум 6 символов');return;}
   if(register&&n.length<2){err('Введите имя');return;}
+  if(register&&!RegExp(r'^[a-z0-9_]{3,30}
+  if(register&&pass2.text!=pw){err('Пароли не совпадают');return;}
+  setState(()=>busy=true);
+  try{
+   final d=await Api.post('/auth/${register?'register':'login'}',register?{'email':e,'name':n,'username':u,'password':pw}:{'email':e,'password':pw});
+   await widget.onLogin(e,d['user']['name']??n,d['token']);
+  }catch(ex){
+   final s=ex.toString().replaceFirst('Exception: ','');
+   err(s.contains('email_exists')?'Этот email уже зарегистрирован':s.contains('username_taken')?'Этот юзернейм уже занят':s.contains('invalid_username')?'Неверный юзернейм':s.contains('invalid_credentials')?'Неверный email или пароль':s.contains('invalid_input')?'Проверьте имя, email и пароль':s.contains('http_')?'Сервер вернул ошибку: $s':s.toLowerCase().contains('socket')||s.toLowerCase().contains('timed out')?'Нет соединения с сервером vibe<3':'Не удалось выполнить запрос');
+  }finally{
+   if(mounted)setState(()=>busy=false);
+  }
+ }
+
+ @override
+ Widget build(BuildContext c){
+  return Scaffold(
+   body:SafeArea(
+    child:Center(
+     child:SingleChildScrollView(
+      padding:const EdgeInsets.all(24),
+      child:ConstrainedBox(
+       constraints:const BoxConstraints(maxWidth:460),
+       child:Column(
+        crossAxisAlignment:CrossAxisAlignment.stretch,
+        children:[
+         Container(
+          height:92,
+          alignment:Alignment.center,
+          decoration:BoxDecoration(
+           borderRadius:BorderRadius.circular(28),
+           gradient:const LinearGradient(colors:[purple,pink]),
+          ),
+          child:const Text('v<3',style:TextStyle(color:Colors.white,fontSize:32,fontWeight:FontWeight.w900)),
+         ),
+         const SizedBox(height:24),
+         Text(register?'Create your account':'Welcome back',textAlign:TextAlign.center,style:const TextStyle(fontSize:28,fontWeight:FontWeight.w900)),
+         const SizedBox(height:8),
+         Text(register?'Join the vibe<3 community':'Sign in to continue',textAlign:TextAlign.center,style:const TextStyle(color:muted)),
+         const SizedBox(height:24),
+         if(register)
+          Padding(
+           padding:const EdgeInsets.only(bottom:12),
+           child:Column(children:[TextField(controller:name,decoration:const InputDecoration(prefixIcon:Icon(Icons.person_outline),hintText:'Name')),const SizedBox(height:12),TextField(controller:username,decoration:const InputDecoration(prefixIcon:Icon(Icons.alternate_email),hintText:'Username (e.g. alex_123)'))]),
+          ),
+         TextField(controller:email,keyboardType:TextInputType.emailAddress,decoration:const InputDecoration(prefixIcon:Icon(Icons.email_outlined),hintText:'Email')),
+         const SizedBox(height:12),
+         TextField(controller:pass,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_outline),hintText:'Password')),
+         if(register)
+          Padding(
+           padding:const EdgeInsets.only(top:12),
+           child:TextField(controller:pass2,obscureText:true,decoration:const InputDecoration(prefixIcon:Icon(Icons.lock_reset),hintText:'Repeat password')),
+          ),
+         const SizedBox(height:18),
+         FilledButton(
+          onPressed:busy?null:submit,
+          style:FilledButton.styleFrom(minimumSize:const Size.fromHeight(54),backgroundColor:purple),
+          child:Text(busy?'Please wait...':register?'Create account':'Sign in'),
+         ),
+         TextButton(
+          onPressed:busy?null:()=>setState(()=>register=!register),
+          child:Text(register?'Already have an account? Sign in':'New to vibe<3? Create account'),
+         ),
+         const SizedBox(height:10),
+         const Text('Аккаунт сохраняется на сервере vibe<3.',textAlign:TextAlign.center,style:TextStyle(color:muted,fontSize:12)),
+        ],
+       ),
+      ),
+     ),
+    ),
+   ),
+  );
+ }
+}
+class Chat{final String id;String name,preview,time;bool online;int unread;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0});}
+class UserX{final String id,name,username;UserX(this.id,this.name,this.username);}
+class Msg{final String id,text,sender;final bool mine;Msg(this.id,this.text,this.sender,this.mine);}
+
+class Shell extends StatefulWidget{final String name,username;final bool light;final ValueChanged<bool> onTheme;final ValueChanged<String> onName;final VoidCallback onLogout;const Shell({super.key,required this.name,required this.light,required this.onTheme,required this.onName,required this.onLogout});@override State<Shell> createState()=>_ShellState();}
+class _ShellState extends State<Shell>{int tab=0;@override Widget build(BuildContext c){final pages=[Chats(onOpen:(x)=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(chat:x)))),Contacts(onOpen:(u)async{try{final d=await Api.post('/chats/direct',{'userId':u.id});final ch=Chat('${d['id']}',u.name,d['preview']??'','now',online:true);if(c.mounted)Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(chat:ch)));}catch(_){if(c.mounted)ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Не удалось открыть чат')));}}),const Calls(),Settings(name:widget.name,username:widget.username,light:widget.light,onTheme:widget.onTheme,onName:widget.onName,onLogout:widget.onLogout)];return Scaffold(body:SafeArea(child:IndexedStack(index:tab,children:pages)),bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:const[NavigationDestination(icon:Icon(Icons.chat_bubble_outline),selectedIcon:Icon(Icons.chat_bubble),label:'Chats'),NavigationDestination(icon:Icon(Icons.people_outline),selectedIcon:Icon(Icons.people),label:'Contacts'),NavigationDestination(icon:Icon(Icons.call_outlined),selectedIcon:Icon(Icons.call),label:'Calls'),NavigationDestination(icon:Icon(Icons.settings_outlined),selectedIcon:Icon(Icons.settings),label:'Settings')]));}}
+
+class Chats extends StatefulWidget{final ValueChanged<Chat> onOpen;const Chats({super.key,required this.onOpen});@override State<Chats> createState()=>_ChatsState();}
+class _ChatsState extends State<Chats>{String q='';bool loading=true;List<Chat> list=[];@override void initState(){super.initState();load();}Future<void> load()async{try{final a=await Api.get('/chats');list=(a as List).map((x)=>Chat('${x['id']}',x['title']??'Chat',x['preview']??'',_time(x['created_at']))).toList();}catch(_){ }if(mounted)setState(()=>loading=false);}String _time(dynamic v){final d=DateTime.tryParse(v?.toString()??'')?.toLocal();return d==null?'':'${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';}@override Widget build(BuildContext c){final f=list.where((x)=>x.name.toLowerCase().contains(q.toLowerCase())||x.preview.toLowerCase().contains(q.toLowerCase())).toList();return Column(children:[Padding(padding:const EdgeInsets.fromLTRB(20,12,20,8),child:Row(children:[const Expanded(child:Text('vibe<3',style:TextStyle(fontSize:30,fontWeight:FontWeight.w900))),IconButton(onPressed:()=>showSearch(context:context,delegate:ChatSearch(list)),icon:const Icon(Icons.search)),IconButton(onPressed:()=>showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>const NewChat()),icon:const Icon(Icons.edit))])),Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v)=>setState(()=>q=v),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Search chats',contentPadding:EdgeInsets.symmetric(vertical:0)))),Expanded(child:loading?const Center(child:CircularProgressIndicator()):f.isEmpty?const EmptyState(icon:Icons.chat_bubble_outline,title:'No chats yet',sub:'Find someone in Contacts and start a conversation.'):ListView.separated(padding:const EdgeInsets.all(12),itemCount:f.length,itemBuilder:(_,i)=>Tile(chat:f[i],tap:()=>widget.onOpen(f[i])),separatorBuilder:(_,__)=>const SizedBox(height:6))) ]);}}
+class ChatSearch extends SearchDelegate<Chat?>{final List<Chat> list;ChatSearch(this.list);@override List<Widget>? buildActions(BuildContext c)=>[IconButton(onPressed:()=>query='',icon:const Icon(Icons.clear))];@override Widget buildLeading(BuildContext c)=>IconButton(onPressed:()=>close(c,null),icon:const Icon(Icons.arrow_back));@override Widget buildResults(BuildContext c)=>r(c);@override Widget buildSuggestions(BuildContext c)=>r(c);Widget r(BuildContext c){final q=query.toLowerCase();return ListView(children:list.where((x)=>x.name.toLowerCase().contains(q)).map((x)=>ListTile(leading:Avatar(name:x.name),title:Text(x.name),subtitle:Text(x.preview),onTap:()=>close(c,x))).toList());}}
+class Tile extends StatelessWidget{final Chat chat;final VoidCallback tap;const Tile({super.key,required this.chat,required this.tap});@override Widget build(BuildContext c)=>Card(color:Theme.of(c).brightness==Brightness.dark?surface:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),child:ListTile(onTap:tap,contentPadding:const EdgeInsets.all(10),leading:Avatar(name:chat.name,size:54),title:Text(chat.name,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text(chat.preview.isEmpty?'No messages yet':chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted)),trailing:Text(chat.time,style:const TextStyle(color:muted,fontSize:12))));}
+class Avatar extends StatelessWidget{final String name;final double size;const Avatar({super.key,required this.name,this.size=46});@override Widget build(BuildContext c){final a=[purple,pink,blue,Color(0xFF43D6B5)];final i=name.isEmpty?0:name.codeUnitAt(0)%4;return Container(width:size,height:size,alignment:Alignment.center,decoration:BoxDecoration(shape:BoxShape.circle,gradient:LinearGradient(colors:[a[i],a[(i+1)%4]])),child:Text(name.isEmpty?'?':name[0].toUpperCase(),style:TextStyle(color:Colors.white,fontSize:size*.38,fontWeight:FontWeight.w900)));}}
+class ChatPage extends StatefulWidget{final Chat chat;const ChatPage({super.key,required this.chat});@override State<ChatPage> createState()=>_ChatState();}
+class _ChatState extends State<ChatPage>{final input=TextEditingController();List<Msg> msgs=[];bool loading=true;IO.Socket? socket;String myId='';@override void initState(){super.initState();load();}@override void dispose(){socket?.disconnect();socket?.dispose();input.dispose();super.dispose();}Future<void> load()async{if(widget.chat.id.isEmpty){if(mounted)setState(()=>loading=false);return;}try{final me=await Api.get('/me');myId='${me['id']}';final a=await Api.get('/chats/${widget.chat.id}/messages');msgs=(a as List).map((x)=>Msg('${x['id']}',x['body']??'',x['sender_name']??'',x['sender_id']?.toString()==myId)).toList();await connectRealtime();}catch(_){ }if(mounted)setState(()=>loading=false);}Future<void> connectRealtime()async{final t=await Api.token();if(t==null)return;socket=IO.io(apiBase,IO.OptionBuilder().setTransports(['websocket']).setAuth({'token':t}).disableAutoConnect().build());socket!.onConnect((_)=>socket!.emit('joinChat',widget.chat.id));socket!.on('message',(data){if(!mounted||data is! Map)return;final id='${data['id']??''}';if(id.isEmpty||msgs.any((m)=>m.id==id))return;setState(()=>msgs.add(Msg(id,'${data['body']??''}','${data['sender_name']??''}','${data['sender_id']}'==myId)));});socket!.connect();}Future<void> send()async{final s=input.text.trim();if(s.isEmpty)return;if(widget.chat.id.isEmpty){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Сначала открой чат из Contacts.')));return;}try{if(socket?.connected==true){socket!.emit('message',{'chatId':widget.chat.id,'body':s,'type':'text'});}else{final x=await Api.post('/chats/${widget.chat.id}/messages',{'body':s,'type':'text'});if(mounted)setState(()=>msgs.add(Msg('${x['id']}',s,'',true)));}input.clear();}catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Сообщение не отправлено')));}}@override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:Row(children:[Avatar(name:widget.chat.name,size:40),const SizedBox(width:9),Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),Text(widget.chat.online?'online':'vibe<3',style:const TextStyle(fontSize:11,color:muted))])]),actions:[IconButton(onPressed:(){},icon:const Icon(Icons.call_outlined)),IconButton(onPressed:(){},icon:const Icon(Icons.more_vert))]),body:Column(children:[Expanded(child:loading?const Center(child:CircularProgressIndicator()):ListView.builder(padding:const EdgeInsets.all(16),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(msg:msgs[i]))),SafeArea(top:false,child:Row(children:[IconButton(onPressed:()=>showModalBottomSheet(context:c,showDragHandle:true,builder:(_)=>const Attach()),icon:const Icon(Icons.add_circle_outline)),Expanded(child:TextField(controller:input,maxLines:5,decoration:const InputDecoration(hintText:'Message...',contentPadding:EdgeInsets.symmetric(horizontal:16,vertical:12)))),const SizedBox(width:6),Padding(padding:const EdgeInsets.only(right:8,bottom:6),child:FloatingActionButton(onPressed:send,mini:true,child:const Icon(Icons.arrow_upward))) ]))]));}
+class Bubble extends StatelessWidget{final Msg msg;const Bubble({super.key,required this.msg});@override Widget build(BuildContext c)=>Align(alignment:msg.mine?Alignment.centerRight:Alignment.centerLeft,child:Container(constraints:const BoxConstraints(maxWidth:320),margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),decoration:BoxDecoration(color:msg.mine?purple:(Theme.of(c).brightness==Brightness.dark?surface2:Colors.white),borderRadius:BorderRadius.circular(18)),child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15))));}
+class Attach extends StatelessWidget{const Attach({super.key});@override Widget build(BuildContext c)=>SafeArea(child:Wrap(children:const[ListTile(leading:Icon(Icons.photo_outlined),title:Text('Photo / video')),ListTile(leading:Icon(Icons.mic_none),title:Text('Voice message')),ListTile(leading:Icon(Icons.insert_drive_file_outlined),title:Text('File')),SizedBox(height:10)]));}
+class Contacts extends StatefulWidget{final ValueChanged<UserX> onOpen;const Contacts({super.key,required this.onOpen});@override State<Contacts> createState()=>_ContactsState();}
+class _ContactsState extends State<Contacts>{String q='';bool loading=true;List<UserX> people=[];@override void initState(){super.initState();search();}Future<void> search()async{try{final a=await Api.get('/users?q=${Uri.encodeQueryComponent(q)}');people=(a as List).map((x)=>UserX('${x['id']}',x['display_name']??'User',x['email']??'')).toList();}catch(_){ }if(mounted)setState(()=>loading=false);}@override Widget build(BuildContext c)=>Column(children:[const Padding(padding:EdgeInsets.fromLTRB(20,18,20,12),child:Align(alignment:Alignment.centerLeft,child:Text('Contacts',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)))),Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v){q=v;search();},decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Find people'))),Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?const EmptyState(icon:Icons.people_outline,title:'No people found',sub:'Try another name or email.'):ListView.builder(itemCount:people.length,itemBuilder:(_,i)=>ListTile(contentPadding:const EdgeInsets.symmetric(horizontal:20,vertical:3),leading:Avatar(name:people[i].name),title:Text(people[i].name,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text('@${people[i].username}',style:const TextStyle(color:muted)),onTap:()=>widget.onOpen(people[i]))))]);}
+class Calls extends StatelessWidget{const Calls({super.key});@override Widget build(BuildContext c)=>Column(children:[const Padding(padding:EdgeInsets.fromLTRB(20,18,20,12),child:Align(alignment:Alignment.centerLeft,child:Text('Calls',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)))),const Expanded(child:EmptyState(icon:Icons.call_outlined,title:'Calls are next',sub:'The voice/video call shell is ready for the next backend release.'))]);}
+class Settings extends StatelessWidget{final String name,username;final bool light;final ValueChanged<bool> onTheme;final ValueChanged<String> onName;final VoidCallback onLogout;const Settings({super.key,required this.name,required this.light,required this.onTheme,required this.onName,required this.onLogout});@override Widget build(BuildContext c)=>ListView(padding:const EdgeInsets.all(18),children:[const Text('Settings',style:TextStyle(fontSize:28,fontWeight:FontWeight.w900)),const SizedBox(height:18),Card(color:Theme.of(c).brightness==Brightness.dark?surface:Colors.white,child:ListTile(contentPadding:const EdgeInsets.all(12),leading:Avatar(name:name,size:56),title:Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('@$username',style:TextStyle(color:muted)),onTap:()=>edit(c))),const SizedBox(height:10),Card(color:Theme.of(c).brightness==Brightness.dark?surface:Colors.white,child:SwitchListTile(value:!light,onChanged:(v)=>onTheme(!v),secondary:const Icon(Icons.dark_mode_outlined),title:const Text('Dark Y2K theme'),subtitle:const Text('Purple / blue / pink',style:TextStyle(color:muted)))),section(c,'Privacy & security',[row(Icons.lock_outline,'Privacy','Last seen and read receipts'),row(Icons.shield_outlined,'Security','Server authentication')]),section(c,'Notifications',[row(Icons.notifications_none,'Notifications','Messages and calls')]),section(c,'About',[row(Icons.info_outline,'About vibe<3','Version 1.0.0')]),const SizedBox(height:14),OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout),label:const Text('Sign out'))]);Widget section(BuildContext c,String t,List<Widget> x)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Padding(padding:const EdgeInsets.fromLTRB(4,18,4,7),child:Text(t.toUpperCase(),style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w800,letterSpacing:1.1))),Card(color:Theme.of(c).brightness==Brightness.dark?surface:Colors.white,child:Column(children:x))]);Widget row(IconData i,String t,String s)=>ListTile(leading:Icon(i),title:Text(t,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(s,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right));void edit(BuildContext c){final x=TextEditingController(text:name);showDialog(context:c,builder:(_)=>AlertDialog(title:const Text('Edit profile'),content:TextField(controller:x),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:const Text('Cancel')),FilledButton(onPressed:(){onName(x.text.trim().isEmpty?'Alex':x.text.trim());Navigator.pop(c);},child:const Text('Save'))]));}}
+class NewChat extends StatelessWidget{const NewChat({super.key});@override Widget build(BuildContext c)=>SafeArea(child:Wrap(children:const[Padding(padding:EdgeInsets.all(20),child:Text('New chat',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900))),ListTile(leading:Icon(Icons.person_add_alt_1),title:Text('Find a contact')),ListTile(leading:Icon(Icons.group_add_outlined),title:Text('New group')),ListTile(leading:Icon(Icons.qr_code_2),title:Text('Scan QR')),SizedBox(height:12)]));}
+class EmptyState extends StatelessWidget{final IconData icon;final String title,sub;const EmptyState({super.key,required this.icon,required this.title,required this.sub});@override Widget build(BuildContext c)=>Center(child:Padding(padding:const EdgeInsets.all(32),child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(icon,size:54,color:muted),const SizedBox(height:14),Text(title,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w800),textAlign:TextAlign.center),const SizedBox(height:6),Text(sub,style:const TextStyle(color:muted),textAlign:TextAlign.center)])));}).hasMatch(u)){err('Юзернейм: 3–30 символов, только a-z, 0-9 и _');return;}
   if(register&&pass2.text!=pw){err('Пароли не совпадают');return;}
   setState(()=>busy=true);
   try{
