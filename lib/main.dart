@@ -242,21 +242,29 @@ class _AuthState extends State<AuthScreen>{
                         ],
                       ),
                       const SizedBox(height:20),
-                      if(register)...[
-                        _AuthField(
-                          controller:name,
-                          icon:Icons.person_outline_rounded,
-                          hint:s.nameHint,
-                          textCapitalization:TextCapitalization.words,
+                      AnimatedSwitcher(
+                        duration:const Duration(milliseconds:280),
+                        switchInCurve:Curves.easeOutCubic,
+                        switchOutCurve:Curves.easeInCubic,
+                        transitionBuilder:(child,animation)=>FadeTransition(
+                          opacity:animation,
+                          child:SlideTransition(
+                            position:Tween<Offset>(begin:const Offset(0,.035),end:Offset.zero).animate(animation),
+                            child:child,
+                          ),
                         ),
-                        const SizedBox(height:11),
-                        _AuthField(
-                          controller:username,
-                          icon:Icons.alternate_email_rounded,
-                          hint:s.usernameHint,
-                        ),
-                        const SizedBox(height:11),
-                      ],
+                        child:register
+                          ?Column(
+                              key:const ValueKey('register-fields'),
+                              children:[
+                                _AuthField(controller:name,icon:Icons.person_outline_rounded,hint:s.nameHint,textCapitalization:TextCapitalization.words),
+                                const SizedBox(height:11),
+                                _AuthField(controller:username,icon:Icons.alternate_email_rounded,hint:s.usernameHint),
+                                const SizedBox(height:11),
+                              ],
+                            )
+                          :const SizedBox.shrink(key:ValueKey('login-fields')),
+                      ),
                       _AuthField(
                         controller:email,
                         icon:Icons.mail_outline_rounded,
@@ -274,19 +282,31 @@ class _AuthState extends State<AuthScreen>{
                           icon:Icon(show1?Icons.visibility_off_outlined:Icons.visibility_outlined),
                         ),
                       ),
-                      if(register)...[
-                        const SizedBox(height:11),
-                        _AuthField(
-                          controller:pass2,
-                          icon:Icons.lock_reset_outlined,
-                          hint:s.repeatPassword,
-                          obscureText:!show2,
-                          suffix:IconButton(
-                            onPressed:busy?null:()=>setState(()=>show2=!show2),
-                            icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined),
-                          ),
+                      AnimatedSwitcher(
+                        duration:const Duration(milliseconds:260),
+                        switchInCurve:Curves.easeOutCubic,
+                        switchOutCurve:Curves.easeInCubic,
+                        transitionBuilder:(child,animation)=>FadeTransition(
+                          opacity:animation,
+                          child:SizeTransition(sizeFactor:animation,axisAlignment:-1,child:child),
                         ),
-                      ],
+                        child:register
+                          ?Padding(
+                              key:const ValueKey('repeat-password'),
+                              padding:const EdgeInsets.only(top:11),
+                              child:_AuthField(
+                                controller:pass2,
+                                icon:Icons.lock_reset_outlined,
+                                hint:s.repeatPassword,
+                                obscureText:!show2,
+                                suffix:IconButton(
+                                  onPressed:busy?null:()=>setState(()=>show2=!show2),
+                                  icon:Icon(show2?Icons.visibility_off_outlined:Icons.visibility_outlined),
+                                ),
+                              ),
+                            )
+                          :const SizedBox.shrink(key:ValueKey('no-repeat-password')),
+                      ),
                       const SizedBox(height:18),
                       SizedBox(
                         width:double.infinity,
@@ -519,7 +539,10 @@ class _ChatsState extends State<Chats>{
         onRefresh:load,
         child:loading?ListView(children:[const SizedBox(height:190),const Center(child:CircularProgressIndicator())]):filtered.isEmpty
           ?ListView(physics:const AlwaysScrollableScrollPhysics(),children:[const SizedBox(height:145),EmptyState(icon:Icons.forum_outlined,title:s.noChats,sub:s.noChatsSub)])
-          :ListView.separated(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(12,2,12,24),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:8),itemBuilder:(_,i)=>Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i]))),
+          :ListView.separated(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(12,2,12,24),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:8),itemBuilder:(_,i)=>_EntryAnimation(
+                            delay:Duration(milliseconds:i>7?320:i*45),
+                            child:Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i])),
+                          )),
       )),
     ]);
   }
@@ -712,9 +735,9 @@ class _ContactsState extends State<Contacts>{
       const SizedBox(height:10),
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
-        itemBuilder:(_,i){final u=people[i];return Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
+        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
           Avatar(name:u.name,size:52),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:3),Text('@'+u.username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:15),
-        ]))));},
+        ])))));},
       )),
     ]);
   }
@@ -869,6 +892,30 @@ class _VibeAnimatedBackgroundState extends State<VibeAnimatedBackground> with Si
           ),
         ]);
       },
+    ),
+  );
+}
+
+class _EntryAnimation extends StatefulWidget{
+  final Widget child;final Duration delay;
+  const _EntryAnimation({required this.child,required this.delay});
+  @override State<_EntryAnimation> createState()=>_EntryAnimationState();
+}
+class _EntryAnimationState extends State<_EntryAnimation> with SingleTickerProviderStateMixin{
+  late final AnimationController controller;
+  @override void initState(){
+    super.initState();
+    controller=AnimationController(vsync:this,duration:const Duration(milliseconds:320));
+    Future.delayed(widget.delay,(){if(mounted)controller.forward();});
+  }
+  @override void dispose(){controller.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>FadeTransition(
+    opacity:CurvedAnimation(parent:controller,curve:Curves.easeOutCubic),
+    child:SlideTransition(
+      position:Tween<Offset>(begin:const Offset(0,.035),end:Offset.zero).animate(
+        CurvedAnimation(parent:controller,curve:Curves.easeOutCubic),
+      ),
+      child:widget.child,
     ),
   );
 }
