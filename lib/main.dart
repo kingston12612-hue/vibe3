@@ -154,7 +154,7 @@ class _VibeState extends State<VibeApp>{
   }
   Future<void> logout()async{final p=await SharedPreferences.getInstance();await p.remove('token');setState(()=>logged=false);}
   @override Widget build(BuildContext context){
-    if(!ready)return MaterialApp(debugShowCheckedModeBanner:false,theme:vibeTheme(true),home:const Scaffold(body:Center(child:CircularProgressIndicator())));
+    if(!ready)return MaterialApp(debugShowCheckedModeBanner:false,theme:vibeTheme(true),home:const VibeSplash());
     return MaterialApp(debugShowCheckedModeBanner:false,title:'vibe<3',locale:Locale(language),supportedLocales:const[Locale('en'),Locale('ru')],themeMode:light?ThemeMode.light:ThemeMode.dark,theme:vibeTheme(false),darkTheme:vibeTheme(true),home:logged?Shell(name:name,username:username,light:light,language:language,notifications:notifications,onTheme:setTheme,onLanguage:setLanguage,onNotifications:setNotifications,onProfile:updateProfile,onLogout:logout):AuthScreen(onLogin:saveUser));
   }
 }
@@ -445,14 +445,34 @@ class _ShellState extends State<Shell>{
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(msg)));
     }
   }
+  Widget _tabLayer(int index,Widget child)=>Positioned.fill(
+    child:IgnorePointer(
+      ignoring:tab!=index,
+      child:AnimatedOpacity(
+        opacity:tab==index?1:0,
+        duration:const Duration(milliseconds:240),
+        curve:Curves.easeOutCubic,
+        child:AnimatedSlide(
+          offset:tab==index?Offset.zero:const Offset(0.025,0),
+          duration:const Duration(milliseconds:280),
+          curve:Curves.easeOutCubic,
+          child:child,
+        ),
+      ),
+    ),
+  );
+
   @override Widget build(BuildContext context){
     final s=S(context);
     return Scaffold(
-      body:SafeArea(child:IndexedStack(index:tab,children:[
-        Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1)),
-        Contacts(onOpen:openPerson),
-        const Calls(),
-        Settings(name:widget.name,username:widget.username,light:widget.light,language:widget.language,notifications:widget.notifications,onTheme:widget.onTheme,onLanguage:widget.onLanguage,onNotifications:widget.onNotifications,onProfile:widget.onProfile,onLogout:widget.onLogout),
+      body:SafeArea(child:Stack(children:[
+        const Positioned.fill(child:VibeAnimatedBackground()),
+        Positioned.fill(child:Stack(children:[
+          _tabLayer(0,Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))),
+          _tabLayer(1,Contacts(onOpen:openPerson)),
+          _tabLayer(2,const Calls()),
+          _tabLayer(3,Settings(name:widget.name,username:widget.username,light:widget.light,language:widget.language,notifications:widget.notifications,onTheme:widget.onTheme,onLanguage:widget.onLanguage,onNotifications:widget.onNotifications,onProfile:widget.onProfile,onLogout:widget.onLogout)),
+        ])),
       ])),
       bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:[
         NavigationDestination(icon:const Icon(Icons.chat_bubble_outline_rounded),selectedIcon:const Icon(Icons.chat_bubble_rounded),label:s.chats),
@@ -599,7 +619,7 @@ class _ChatState extends State<ChatPage>{
       body:Column(children:[
         Expanded(child:DecoratedBox(
           decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(.035),Colors.transparent,pink.withOpacity(.03)])),
-          child:loading?const Center(child:CircularProgressIndicator()):msgs.isEmpty?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub):ListView.builder(controller:scroll,padding:const EdgeInsets.fromLTRB(14,18,14,14),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(msg:msgs[i])),
+          child:loading?const Center(child:CircularProgressIndicator()):msgs.isEmpty?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub):ListView.builder(controller:scroll,padding:const EdgeInsets.fromLTRB(14,18,14,14),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(key:ValueKey(msgs[i].id),msg:msgs[i])),
         )),
         SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(10,6,10,10),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
           _CircleAction(icon:Icons.add_rounded,onTap:()=>showAttachments(context)),const SizedBox(width:8),
@@ -636,15 +656,37 @@ class _ChatState extends State<ChatPage>{
   void openCall(BuildContext context,bool video)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(name:widget.chat.name,video:video)));
 }
 
-class Bubble extends StatelessWidget{
+class Bubble extends StatefulWidget{
   final Msg msg;const Bubble({super.key,required this.msg});
+  @override State<Bubble> createState()=>_BubbleState();
+}
+class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
+  late final AnimationController controller;
+  late final Animation<double> scale;
+  @override void initState(){
+    super.initState();
+    controller=AnimationController(vsync:this,duration:const Duration(milliseconds:280));
+    scale=Tween<double>(begin:.90,end:1).animate(CurvedAnimation(parent:controller,curve:Curves.easeOutBack));
+    controller.forward();
+  }
+  @override void dispose(){controller.dispose();super.dispose();}
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
-    return Align(alignment:msg.mine?Alignment.centerRight:Alignment.centerLeft,child:Container(
-      constraints:const BoxConstraints(maxWidth:325),margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),
-      decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:(dark?surface2:Colors.white),borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:dark?stroke:Colors.black12)),
-      child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15,height:1.3)),
-    ));
+    final msg=widget.msg;
+    return Align(
+      alignment:msg.mine?Alignment.centerRight:Alignment.centerLeft,
+      child:FadeTransition(
+        opacity:CurvedAnimation(parent:controller,curve:Curves.easeOut),
+        child:ScaleTransition(
+          scale:scale,
+          child:Container(
+            constraints:const BoxConstraints(maxWidth:325),margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),
+            decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:(dark?surface2:Colors.white),borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:dark?stroke:Colors.black12)),
+            child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15,height:1.3)),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -754,6 +796,83 @@ class CallPage extends StatelessWidget{
   }
 }
 
+class VibeSplash extends StatefulWidget{
+  const VibeSplash({super.key});
+  @override State<VibeSplash> createState()=>_VibeSplashState();
+}
+class _VibeSplashState extends State<VibeSplash> with SingleTickerProviderStateMixin{
+  late final AnimationController controller;
+  late final Animation<double> reveal;
+  @override void initState(){
+    super.initState();
+    controller=AnimationController(vsync:this,duration:const Duration(milliseconds:1050))..forward();
+    reveal=CurvedAnimation(parent:controller,curve:Curves.easeOutCubic);
+  }
+  @override void dispose(){controller.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>Scaffold(
+    backgroundColor:bg,
+    body:Stack(children:[
+      const Positioned.fill(child:VibeAnimatedBackground()),
+      Center(child:AnimatedBuilder(
+        animation:reveal,
+        builder:(_,__)=>Opacity(
+          opacity:reveal.value,
+          child:Transform.scale(
+            scale:.90+(.10*reveal.value),
+            child:Column(mainAxisSize:MainAxisSize.min,children:[
+              const _BrandMark(),
+              const SizedBox(height:20),
+              const Text('vibe<3',style:TextStyle(fontSize:30,fontWeight:FontWeight.w900,letterSpacing:-1.2)),
+              const SizedBox(height:6),
+              const Text('private. personal. yours.',style:TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w600)),
+              const SizedBox(height:26),
+              SizedBox(width:92,height:3,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:reveal.value,minHeight:3,backgroundColor:stroke))),
+            ]),
+          ),
+        ),
+      )),
+    ]),
+  );
+}
+
+class VibeAnimatedBackground extends StatefulWidget{
+  const VibeAnimatedBackground({super.key});
+  @override State<VibeAnimatedBackground> createState()=>_VibeAnimatedBackgroundState();
+}
+class _VibeAnimatedBackgroundState extends State<VibeAnimatedBackground> with SingleTickerProviderStateMixin{
+  late final AnimationController controller;
+  @override void initState(){
+    super.initState();
+    controller=AnimationController(vsync:this,duration:const Duration(seconds:8))..repeat(reverse:true);
+  }
+  @override void dispose(){controller.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>IgnorePointer(
+    child:AnimatedBuilder(
+      animation:controller,
+      builder:(_,__) {
+        final t=Curves.easeInOut.transform(controller.value);
+        return Stack(clipBehavior:Clip.none,children:[
+          Positioned(
+            left:-90+(100*t),
+            top:-130+(45*t),
+            child:_Glow(size:300,color:purple.withOpacity(.11)),
+          ),
+          Positioned(
+            right:-100+(65*(1-t)),
+            top:110-(35*t),
+            child:_Glow(size:240,color:pink.withOpacity(.075)),
+          ),
+          Positioned(
+            left:80-(70*t),
+            bottom:-145+(55*t),
+            child:_Glow(size:270,color:blue.withOpacity(.055)),
+          ),
+        ]);
+      },
+    ),
+  );
+}
+
 class EmptyState extends StatelessWidget{
   final IconData icon;final String title,sub;const EmptyState({super.key,required this.icon,required this.title,required this.sub});
   @override Widget build(BuildContext context)=>Center(child:Padding(padding:const EdgeInsets.all(30),child:Column(mainAxisSize:MainAxisSize.min,children:[
@@ -781,11 +900,33 @@ class _Glow extends StatelessWidget{
   final double size;final Color color;const _Glow({required this.size,required this.color});
   @override Widget build(BuildContext context)=>IgnorePointer(child:Container(width:size,height:size,decoration:BoxDecoration(shape:BoxShape.circle,color:color,boxShadow:[BoxShadow(color:color,blurRadius:90,spreadRadius:30)])));
 }
-class _CircleAction extends StatelessWidget{
+class _CircleAction extends StatefulWidget{
   final IconData icon;final VoidCallback onTap;final bool filled,busy;
   const _CircleAction({required this.icon,required this.onTap,this.filled=false,this.busy=false});
+  @override State<_CircleAction> createState()=>_CircleActionState();
+}
+class _CircleActionState extends State<_CircleAction>{
+  bool pressed=false;
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
-    return Material(color:filled?purple:(dark?surface2:const Color(0xFFECEAF2)),borderRadius:BorderRadius.circular(18),child:InkWell(borderRadius:BorderRadius.circular(18),onTap:onTap,child:SizedBox(width:50,height:50,child:Center(child:busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):Icon(icon,color:filled?Colors.white:null)))));
+    return GestureDetector(
+      onTapDown:(_)=>setState(()=>pressed=true),
+      onTapCancel:()=>setState(()=>pressed=false),
+      onTapUp:(_){setState(()=>pressed=false);if(!widget.busy)widget.onTap();},
+      child:AnimatedScale(
+        scale:pressed?.90:1,
+        duration:const Duration(milliseconds:90),
+        curve:Curves.easeOut,
+        child:Material(
+          color:widget.filled?purple:(dark?surface2:const Color(0xFFECEAF2)),
+          borderRadius:BorderRadius.circular(18),
+          child:InkWell(
+            borderRadius:BorderRadius.circular(18),
+            onTap:widget.busy?null:widget.onTap,
+            child:SizedBox(width:50,height:50,child:Center(child:widget.busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):Icon(widget.icon,color:widget.filled?Colors.white:null))),
+          ),
+        ),
+      ),
+    );
   }
 }
