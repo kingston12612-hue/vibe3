@@ -792,7 +792,7 @@ class Tile extends StatelessWidget{
                 child:Column(
                   crossAxisAlignment:CrossAxisAlignment.start,
                   children:[
-                    Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w850)),
+                    Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),
                     const SizedBox(height:4),
                     Text(chat.preview.isEmpty?S(context).active:chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13)),
                   ],
