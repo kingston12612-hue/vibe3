@@ -446,9 +446,11 @@ class _AuthField extends StatelessWidget{
       width:double.infinity,
       child:DecoratedBox(
         decoration:BoxDecoration(
-          color:dark?surface2:const Color(0xFFEFEFF5),
+          color:Colors.transparent,
           borderRadius:BorderRadius.circular(18),
-          border:Border.all(color:dark?stroke:Colors.black12),
+          border:Border.all(
+            color:dark?Colors.white.withOpacity(.10):Colors.black.withOpacity(.08),
+          ),
         ),
         child:TextField(
           controller:controller,
