@@ -479,15 +479,20 @@ class _AuthFieldState extends State<_AuthField>{
             child:Stack(
               alignment:Alignment.centerLeft,
               children:[
-                if(widget.controller.text.isEmpty)
-                  IgnorePointer(
-                    child:Text(
-                      widget.hint,
-                      maxLines:1,
-                      overflow:TextOverflow.ellipsis,
-                      style:const TextStyle(color:muted,fontSize:16),
-                    ),
-                  ),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable:widget.controller,
+                  builder:(context,value,_){
+                    if(value.text.isNotEmpty)return const SizedBox.shrink();
+                    return IgnorePointer(
+                      child:Text(
+                        widget.hint,
+                        maxLines:1,
+                        overflow:TextOverflow.ellipsis,
+                        style:const TextStyle(color:muted,fontSize:16),
+                      ),
+                    );
+                  },
+                ),
                 EditableText(
                   controller:widget.controller,
                   focusNode:focusNode,
