@@ -462,9 +462,7 @@ class _AuthField extends StatelessWidget{
         decoration:BoxDecoration(
           color:Colors.transparent,
           borderRadius:BorderRadius.circular(18),
-          border:Border.all(
-            color:dark?Colors.white.withOpacity(.10):Colors.black.withOpacity(.08),
-          ),
+          border:Border.all(color:Colors.transparent),
         ),
         child:Theme(
           data:fieldTheme,
