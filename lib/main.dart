@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
@@ -167,6 +168,16 @@ class AuthScreen extends StatefulWidget{
 class _AuthState extends State<AuthScreen>{
   bool register=false,busy=false,show1=false,show2=false;
   final email=TextEditingController(),name=TextEditingController(),username=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+  @override void initState(){
+    super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor:bg,
+      statusBarIconBrightness:Brightness.light,
+      systemNavigationBarColor:bg,
+      systemNavigationBarIconBrightness:Brightness.light,
+      systemNavigationBarDividerColor:bg,
+    ));
+  }
   @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();super.dispose();}
   void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
   Future<void> submit()async{
@@ -457,57 +468,46 @@ class _AuthField extends StatefulWidget{
 
 class _AuthFieldState extends State<_AuthField>{
   late final FocusNode focusNode;
-  @override void initState(){
-    super.initState();
-    focusNode=FocusNode();
-  }
-  @override void dispose(){
-    focusNode.dispose();
-    super.dispose();
-  }
+  @override void initState(){super.initState();focusNode=FocusNode();}
+  @override void dispose(){focusNode.dispose();super.dispose();}
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
-    return SizedBox(
+    return Container(
       height:56,
       width:double.infinity,
+      decoration:BoxDecoration(
+        color:Colors.transparent,
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:dark?stroke.withOpacity(.55):Colors.black12),
+      ),
       child:Row(
         children:[
           const SizedBox(width:16),
-          Icon(widget.icon,color:dark?muted:Colors.black54),
+          Icon(widget.icon,color:dark?muted:Colors.black54,size:21),
           const SizedBox(width:8),
           Expanded(
-            child:Stack(
-              alignment:Alignment.centerLeft,
-              children:[
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable:widget.controller,
-                  builder:(context,value,_){
-                    if(value.text.isNotEmpty)return const SizedBox.shrink();
-                    return IgnorePointer(
-                      child:Text(
-                        widget.hint,
-                        maxLines:1,
-                        overflow:TextOverflow.ellipsis,
-                        style:const TextStyle(color:muted,fontSize:16),
-                      ),
-                    );
-                  },
-                ),
-                EditableText(
-                  controller:widget.controller,
-                  focusNode:focusNode,
-                  obscureText:widget.obscureText,
-                  obscuringCharacter:'•',
-                  keyboardType:widget.keyboardType??TextInputType.text,
-                  textCapitalization:widget.textCapitalization,
-                  maxLines:1,
-                  minLines:1,
-                  style:const TextStyle(fontWeight:FontWeight.w600,fontSize:16),
-                  cursorColor:purple,
-                  backgroundCursorColor:muted,
-                  selectionColor:purple.withOpacity(.25),
-                ),
-              ],
+            child:TextField(
+              controller:widget.controller,
+              focusNode:focusNode,
+              obscureText:widget.obscureText,
+              obscuringCharacter:'•',
+              keyboardType:widget.keyboardType??TextInputType.text,
+              textCapitalization:widget.textCapitalization,
+              maxLines:1,
+              style:const TextStyle(fontWeight:FontWeight.w600,fontSize:16),
+              cursorColor:purple,
+              decoration:InputDecoration(
+                hintText:widget.hint,
+                hintStyle:const TextStyle(color:muted,fontSize:16),
+                filled:false,
+                fillColor:Colors.transparent,
+                border:InputBorder.none,
+                enabledBorder:InputBorder.none,
+                focusedBorder:InputBorder.none,
+                disabledBorder:InputBorder.none,
+                contentPadding:EdgeInsets.zero,
+                isDense:true,
+              ),
             ),
           ),
           if(widget.suffix!=null) widget.suffix!,
