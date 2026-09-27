@@ -560,38 +560,90 @@ class _ShellState extends State<Shell>{
       ignoring:tab!=index,
       child:AnimatedOpacity(
         opacity:tab==index?1:0,
-        duration:const Duration(milliseconds:240),
+        duration:const Duration(milliseconds:220),
         curve:Curves.easeOutCubic,
         child:AnimatedSlide(
-          offset:tab==index?Offset.zero:const Offset(0.025,0),
-          duration:const Duration(milliseconds:280),
+          offset:tab==index?Offset.zero:const Offset(0.018,0),
+          duration:const Duration(milliseconds:260),
           curve:Curves.easeOutCubic,
           child:child,
         ),
       ),
     ),
   );
-
   @override Widget build(BuildContext context){
     final s=S(context);
     return Scaffold(
-      body:SafeArea(child:Stack(children:[
-        const Positioned.fill(child:VibeAnimatedBackground()),
-        Positioned.fill(child:Stack(children:[
-          _tabLayer(0,Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))),
-          _tabLayer(1,Contacts(onOpen:openPerson)),
-          _tabLayer(2,const Calls()),
-          _tabLayer(3,Settings(name:widget.name,username:widget.username,light:widget.light,language:widget.language,notifications:widget.notifications,onTheme:widget.onTheme,onLanguage:widget.onLanguage,onNotifications:widget.onNotifications,onProfile:widget.onProfile,onLogout:widget.onLogout)),
-        ])),
-      ])),
-      bottomNavigationBar:NavigationBar(selectedIndex:tab,onDestinationSelected:(i)=>setState(()=>tab=i),destinations:[
-        NavigationDestination(icon:const Icon(Icons.chat_bubble_outline_rounded),selectedIcon:const Icon(Icons.chat_bubble_rounded),label:s.chats),
-        NavigationDestination(icon:const Icon(Icons.people_outline_rounded),selectedIcon:const Icon(Icons.people_alt_rounded),label:s.people),
-        NavigationDestination(icon:const Icon(Icons.call_outlined),selectedIcon:const Icon(Icons.call_rounded),label:s.calls),
-        NavigationDestination(icon:const Icon(Icons.tune_rounded),selectedIcon:const Icon(Icons.tune_rounded),label:s.settings),
-      ]),
+      extendBody:true,
+      backgroundColor:bg,
+      body:SafeArea(
+        bottom:false,
+        child:Stack(children:[
+          const Positioned.fill(child:VibeAnimatedBackground()),
+          Positioned.fill(child:Stack(children:[
+            _tabLayer(0,Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))),
+            _tabLayer(1,Contacts(onOpen:openPerson)),
+            _tabLayer(2,const Calls()),
+            _tabLayer(3,Settings(name:widget.name,username:widget.username,light:widget.light,language:widget.language,notifications:widget.notifications,onTheme:widget.onTheme,onLanguage:widget.onLanguage,onNotifications:widget.onNotifications,onProfile:widget.onProfile,onLogout:widget.onLogout)),
+          ])),
+        ]),
+      ),
+      bottomNavigationBar:SafeArea(
+        top:false,
+        child:Padding(
+          padding:const EdgeInsets.fromLTRB(14,8,14,10),
+          child:Container(
+            height:66,
+            decoration:BoxDecoration(
+              color:surface.withOpacity(.94),
+              borderRadius:BorderRadius.circular(24),
+              border:Border.all(color:stroke.withOpacity(.9)),
+              boxShadow:[BoxShadow(color:purple.withOpacity(.10),blurRadius:28,spreadRadius:-8,offset:const Offset(0,8))],
+            ),
+            child:Row(
+              children:[
+                _NavItem(icon:Icons.chat_bubble_outline_rounded,activeIcon:Icons.chat_bubble_rounded,label:s.chats,active:tab==0,onTap:()=>setState(()=>tab=0)),
+                _NavItem(icon:Icons.people_outline_rounded,activeIcon:Icons.people_alt_rounded,label:s.people,active:tab==1,onTap:()=>setState(()=>tab=1)),
+                _NavItem(icon:Icons.call_outlined,activeIcon:Icons.call_rounded,label:s.calls,active:tab==2,onTap:()=>setState(()=>tab=2)),
+                _NavItem(icon:Icons.tune_rounded,activeIcon:Icons.tune_rounded,label:s.settings,active:tab==3,onTap:()=>setState(()=>tab=3)),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
+}
+
+class _NavItem extends StatelessWidget{
+  final IconData icon,activeIcon;final String label;final bool active;final VoidCallback onTap;
+  const _NavItem({required this.icon,required this.activeIcon,required this.label,required this.active,required this.onTap});
+  @override Widget build(BuildContext context)=>Expanded(
+    child:Material(
+      color:Colors.transparent,
+      child:InkWell(
+        onTap:onTap,
+        borderRadius:BorderRadius.circular(19),
+        child:AnimatedContainer(
+          duration:const Duration(milliseconds:180),
+          margin:const EdgeInsets.symmetric(horizontal:3,vertical:6),
+          decoration:BoxDecoration(
+            color:active?purple.withOpacity(.16):Colors.transparent,
+            borderRadius:BorderRadius.circular(19),
+            border:active?Border.all(color:purple.withOpacity(.28)):null,
+          ),
+          child:Column(
+            mainAxisAlignment:MainAxisAlignment.center,
+            children:[
+              Icon(active?activeIcon:icon,size:21,color:active?Colors.white:muted),
+              const SizedBox(height:3),
+              Text(label,style:TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:active?Colors.white:muted)),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class Chats extends StatefulWidget{
@@ -617,49 +669,89 @@ class _ChatsState extends State<Chats>{
   @override Widget build(BuildContext context){
     final s=S(context);
     final filtered=list.where((x)=>x.name.toLowerCase().contains(q.toLowerCase())||x.preview.toLowerCase().contains(q.toLowerCase())).toList();
-    return Column(children:[
-      Padding(padding:const EdgeInsets.fromLTRB(18,14,12,8),child:Row(children:[
-        const _VibeWordmark(),const Spacer(),
-        IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)widget.onOpen(x);},icon:const Icon(Icons.search_rounded)),
-        IconButton(tooltip:s.newChat,onPressed:widget.onNewChat,icon:const Icon(Icons.add_comment_rounded)),
-      ])),
-      Padding(
-        padding:const EdgeInsets.symmetric(horizontal:16),
-        child:Container(
-          height:52,
-          decoration:BoxDecoration(
-            color:Colors.transparent,
-            borderRadius:BorderRadius.circular(18),
-            border:Border.all(color:stroke.withOpacity(.55)),
-          ),
-          child:TextField(
-            onChanged:(v)=>setState(()=>q=v),
-            style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
-            cursorColor:purple,
-            decoration:InputDecoration(
-              prefixIcon:const Icon(Icons.search_rounded,color:muted),
-              hintText:s.searchChats,
-              hintStyle:const TextStyle(color:muted,fontSize:15),
-              filled:false,
-              border:InputBorder.none,
-              enabledBorder:InputBorder.none,
-              focusedBorder:InputBorder.none,
-              contentPadding:const EdgeInsets.symmetric(vertical:15),
+    return Stack(
+      children:[
+        Positioned(top:-170,right:-120,child:_Glow(size:330,color:purple.withOpacity(.12))),
+        Positioned(top:100,left:-180,child:_Glow(size:270,color:blue.withOpacity(.045))),
+        Positioned(bottom:20,right:-160,child:_Glow(size:290,color:pink.withOpacity(.055))),
+        Column(
+          children:[
+            Padding(
+              padding:const EdgeInsets.fromLTRB(22,18,16,8),
+              child:Row(
+                children:[
+                  Column(
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      const Text('vibe<3',style:TextStyle(fontSize:30,fontWeight:FontWeight.w900,letterSpacing:-1.3)),
+                      const SizedBox(height:2),
+                      Text(s.chats.toLowerCase(),style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w700,letterSpacing:.7)),
+                    ],
+                  ),
+                  const Spacer(),
+                  _CircleAction(icon:Icons.search_rounded,onTap:()async{
+                    final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));
+                    if(x!=null)widget.onOpen(x);
+                  }),
+                  const SizedBox(width:8),
+                  _CircleAction(icon:Icons.add_comment_rounded,filled:true,onTap:widget.onNewChat),
+                ],
+              ),
             ),
-          ),
+            Padding(
+              padding:const EdgeInsets.fromLTRB(16,8,16,12),
+              child:Container(
+                height:50,
+                decoration:BoxDecoration(
+                  color:surface.withOpacity(.72),
+                  borderRadius:BorderRadius.circular(18),
+                  border:Border.all(color:stroke.withOpacity(.85)),
+                ),
+                child:TextField(
+                  onChanged:(v)=>setState(()=>q=v),
+                  style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+                  cursorColor:purple,
+                  decoration:InputDecoration(
+                    prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
+                    hintText:s.searchChats,
+                    hintStyle:const TextStyle(color:muted,fontSize:14),
+                    filled:false,
+                    border:InputBorder.none,
+                    enabledBorder:InputBorder.none,
+                    focusedBorder:InputBorder.none,
+                    contentPadding:const EdgeInsets.symmetric(vertical:14),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child:RefreshIndicator(
+                color:purple,
+                backgroundColor:surface,
+                onRefresh:load,
+                child:loading
+                  ?ListView(children:[const SizedBox(height:170),const Center(child:CircularProgressIndicator(color:purple))])
+                  :filtered.isEmpty
+                    ?ListView(
+                      physics:const AlwaysScrollableScrollPhysics(),
+                      children:[const SizedBox(height:125),EmptyState(icon:Icons.forum_outlined,title:s.noChats,sub:s.noChatsSub)]
+                    )
+                    :ListView.separated(
+                      physics:const AlwaysScrollableScrollPhysics(),
+                      padding:const EdgeInsets.fromLTRB(14,2,14,100),
+                      itemCount:filtered.length,
+                      separatorBuilder:(_,__)=>const SizedBox(height:9),
+                      itemBuilder:(_,i)=>_EntryAnimation(
+                        delay:Duration(milliseconds:i>7?320:i*45),
+                        child:Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i])),
+                      ),
+                    ),
+              ),
+            ),
+          ],
         ),
-      ),
-      const SizedBox(height:10),
-      Expanded(child:RefreshIndicator(
-        onRefresh:load,
-        child:loading?ListView(children:[const SizedBox(height:190),const Center(child:CircularProgressIndicator())]):filtered.isEmpty
-          ?ListView(physics:const AlwaysScrollableScrollPhysics(),children:[const SizedBox(height:145),EmptyState(icon:Icons.forum_outlined,title:s.noChats,sub:s.noChatsSub)])
-          :ListView.separated(physics:const AlwaysScrollableScrollPhysics(),padding:const EdgeInsets.fromLTRB(12,2,12,24),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:8),itemBuilder:(_,i)=>_EntryAnimation(
-                            delay:Duration(milliseconds:i>7?320:i*45),
-                            child:Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i])),
-                          )),
-      )),
-    ]);
+      ],
+    );
   }
 }
 
@@ -678,18 +770,45 @@ class ChatSearch extends SearchDelegate<Chat?>{
 class Tile extends StatelessWidget{
   final Chat chat;final VoidCallback tap;
   const Tile({super.key,required this.chat,required this.tap});
-  @override Widget build(BuildContext context)=>Card(child:InkWell(
-    onTap:tap,borderRadius:BorderRadius.circular(22),
-    child:Padding(padding:const EdgeInsets.all(12),child:Row(children:[
-      Avatar(name:chat.name,size:56),const SizedBox(width:12),
-      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),
-        const SizedBox(height:4),
-        Text(chat.preview.isEmpty?S(context).active:chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13)),
-      ])),
-      if(chat.time.isNotEmpty)Text(chat.time,style:const TextStyle(color:muted,fontSize:11)),
-    ])),
-  ));
+  @override Widget build(BuildContext context){
+    return Material(
+      color:Colors.transparent,
+      child:InkWell(
+        onTap:tap,
+        borderRadius:BorderRadius.circular(22),
+        child:Container(
+          padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
+          decoration:BoxDecoration(
+            color:surface.withOpacity(.82),
+            borderRadius:BorderRadius.circular(22),
+            border:Border.all(color:stroke.withOpacity(.72)),
+            boxShadow:[BoxShadow(color:Colors.black.withOpacity(.20),blurRadius:18,offset:const Offset(0,8))],
+          ),
+          child:Row(
+            children:[
+              Avatar(name:chat.name,size:56),
+              const SizedBox(width:12),
+              Expanded(
+                child:Column(
+                  crossAxisAlignment:CrossAxisAlignment.start,
+                  children:[
+                    Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w850)),
+                    const SizedBox(height:4),
+                    Text(chat.preview.isEmpty?S(context).active:chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13)),
+                  ],
+                ),
+              ),
+              const SizedBox(width:8),
+              if(chat.time.isNotEmpty)Align(
+                alignment:Alignment.topRight,
+                child:Text(chat.time,style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class Avatar extends StatelessWidget{
