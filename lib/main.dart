@@ -439,19 +439,42 @@ class _AuthField extends StatelessWidget{
   final TextEditingController controller;final IconData icon;final String hint;final bool obscureText;final Widget? suffix;
   final TextInputType? keyboardType;final TextCapitalization textCapitalization;
   const _AuthField({required this.controller,required this.icon,required this.hint,this.obscureText=false,this.suffix,this.keyboardType,this.textCapitalization=TextCapitalization.none});
-  @override Widget build(BuildContext context)=>TextField(
-    controller:controller,
-    obscureText:obscureText,
-    keyboardType:keyboardType,
-    textCapitalization:textCapitalization,
-    style:const TextStyle(fontWeight:FontWeight.w600),
-    decoration:InputDecoration(
-      prefixIcon:Icon(icon),
-      suffixIcon:suffix,
-      hintText:hint,
-      contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:17),
-    ),
-  );
+  @override Widget build(BuildContext context){
+    final dark=Theme.of(context).brightness==Brightness.dark;
+    return SizedBox(
+      height:56,
+      width:double.infinity,
+      child:DecoratedBox(
+        decoration:BoxDecoration(
+          color:dark?surface2:const Color(0xFFEFEFF5),
+          borderRadius:BorderRadius.circular(18),
+          border:Border.all(color:dark?stroke:Colors.black12),
+        ),
+        child:TextField(
+          controller:controller,
+          obscureText:obscureText,
+          keyboardType:keyboardType,
+          textCapitalization:textCapitalization,
+          maxLines:1,
+          minLines:1,
+          expands:false,
+          textAlignVertical:TextAlignVertical.center,
+          style:const TextStyle(fontWeight:FontWeight.w600),
+          decoration:InputDecoration(
+            isDense:true,
+            filled:false,
+            border:InputBorder.none,
+            enabledBorder:InputBorder.none,
+            focusedBorder:InputBorder.none,
+            prefixIcon:Icon(icon),
+            suffixIcon:suffix,
+            hintText:hint,
+            contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:0),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 String friendlyError(Object ex,AppStrings s){
