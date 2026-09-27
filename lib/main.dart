@@ -409,8 +409,8 @@ class _AuthMode extends StatelessWidget{
           end:Alignment.bottomRight,
           colors:[purple,pink],
         ):null,
-        color:active?null:surface2.withOpacity(.72),
-        border:Border.all(color:active?Colors.transparent:stroke.withOpacity(.75)),
+        color:active?null:Colors.transparent,
+        border:Border.all(color:Colors.transparent),
         boxShadow:active?[BoxShadow(color:purple.withOpacity(.20),blurRadius:18,offset:const Offset(0,6))]:null,
       ),
       child:Material(
