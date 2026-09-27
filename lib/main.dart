@@ -309,43 +309,52 @@ class _AuthState extends State<AuthScreen>{
                       const SizedBox(height:18),
                       SizedBox(
                         width:double.infinity,
+                        height:56,
                         child:DecoratedBox(
                           decoration:BoxDecoration(
                             gradient:const LinearGradient(
-                              begin:Alignment.centerLeft,
-                              end:Alignment.centerRight,
+                              begin:Alignment.topLeft,
+                              end:Alignment.bottomRight,
                               colors:[purple,pink],
                             ),
-                            borderRadius:BorderRadius.circular(18),
+                            borderRadius:BorderRadius.circular(17),
+                            border:Border.all(color:Colors.white.withOpacity(.10)),
                             boxShadow:[
                               BoxShadow(
-                                color:purple.withOpacity(.24),
-                                blurRadius:26,
-                                offset:const Offset(0,10),
+                                color:purple.withOpacity(.20),
+                                blurRadius:22,
+                                offset:const Offset(0,9),
                               ),
                             ],
                           ),
-                          child:FilledButton(
-                            onPressed:busy?null:submit,
-                            style:FilledButton.styleFrom(
-                              backgroundColor:Colors.transparent,
-                              shadowColor:Colors.transparent,
-                              minimumSize:const Size.fromHeight(56),
-                              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
-                            ),
-                            child:Row(
-                              mainAxisAlignment:MainAxisAlignment.center,
-                              children:[
-                                if(busy)
-                                  const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
-                                else
-                                  Icon(register?Icons.arrow_forward_rounded:Icons.login_rounded,size:20,color:Colors.white),
-                                const SizedBox(width:9),
-                                Text(
-                                  busy?s.wait:(register?s.createAccount:s.signIn),
-                                  style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15),
+                          child:Material(
+                            color:Colors.transparent,
+                            child:InkWell(
+                              onTap:busy?null:submit,
+                              borderRadius:BorderRadius.circular(17),
+                              child:Center(
+                                child:AnimatedSwitcher(
+                                  duration:const Duration(milliseconds:180),
+                                  child:busy
+                                    ?const SizedBox(
+                                        key:ValueKey('busy'),
+                                        width:18,height:18,
+                                        child:CircularProgressIndicator(strokeWidth:2,color:Colors.white),
+                                      )
+                                    :Row(
+                                        key:ValueKey('ready'),
+                                        mainAxisSize:MainAxisSize.min,
+                                        children:[
+                                          Icon(register?Icons.arrow_forward_rounded:Icons.login_rounded,size:19,color:Colors.white),
+                                          const SizedBox(width:9),
+                                          Text(
+                                            register?s.createAccount:s.signIn,
+                                            style:const TextStyle(fontWeight:FontWeight.w900,fontSize:15,color:Colors.white),
+                                          ),
+                                        ],
+                                      ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
@@ -389,20 +398,37 @@ class _AuthMode extends StatelessWidget{
   final String label;final bool active;final VoidCallback? onTap;
   const _AuthMode({required this.label,required this.active,required this.onTap});
   @override Widget build(BuildContext context)=>Expanded(
-    child:Material(
-      color:active?purple.withOpacity(.14):Colors.transparent,
-      borderRadius:BorderRadius.circular(16),
-      child:InkWell(
-        onTap:onTap,
-        borderRadius:BorderRadius.circular(16),
-        child:Container(
-          height:46,
-          alignment:Alignment.center,
-          decoration:BoxDecoration(
-            borderRadius:BorderRadius.circular(16),
-            border:Border.all(color:active?purple.withOpacity(.55):stroke),
+    child:AnimatedContainer(
+      duration:const Duration(milliseconds:220),
+      curve:Curves.easeOutCubic,
+      height:48,
+      decoration:BoxDecoration(
+        borderRadius:BorderRadius.circular(15),
+        gradient:active?const LinearGradient(
+          begin:Alignment.topLeft,
+          end:Alignment.bottomRight,
+          colors:[purple,pink],
+        ):null,
+        color:active?null:surface2.withOpacity(.72),
+        border:Border.all(color:active?Colors.transparent:stroke.withOpacity(.75)),
+        boxShadow:active?[BoxShadow(color:purple.withOpacity(.20),blurRadius:18,offset:const Offset(0,6))]:null,
+      ),
+      child:Material(
+        color:Colors.transparent,
+        child:InkWell(
+          onTap:onTap,
+          borderRadius:BorderRadius.circular(15),
+          child:Center(
+            child:Text(
+              label,
+              style:TextStyle(
+                fontWeight:FontWeight.w900,
+                fontSize:13,
+                letterSpacing:.1,
+                color:active?Colors.white:muted,
+              ),
+            ),
           ),
-          child:Text(label,style:TextStyle(fontWeight:FontWeight.w900,color:active?null:muted)),
         ),
       ),
     ),
