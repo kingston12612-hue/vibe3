@@ -170,12 +170,14 @@ class _AuthState extends State<AuthScreen>{
   final email=TextEditingController(),name=TextEditingController(),username=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
   @override void initState(){
     super.initState();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor:bg,
+      statusBarColor:Colors.transparent,
       statusBarIconBrightness:Brightness.light,
-      systemNavigationBarColor:bg,
+      systemNavigationBarColor:Colors.transparent,
       systemNavigationBarIconBrightness:Brightness.light,
-      systemNavigationBarDividerColor:bg,
+      systemNavigationBarDividerColor:Colors.transparent,
+      systemNavigationBarContrastEnforced:false,
     ));
   }
   @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();super.dispose();}
@@ -621,7 +623,32 @@ class _ChatsState extends State<Chats>{
         IconButton(tooltip:s.search,onPressed:()async{final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));if(x!=null)widget.onOpen(x);},icon:const Icon(Icons.search_rounded)),
         IconButton(tooltip:s.newChat,onPressed:widget.onNewChat,icon:const Icon(Icons.add_comment_rounded)),
       ])),
-      Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v)=>setState(()=>q=v),decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:s.searchChats))),
+      Padding(
+        padding:const EdgeInsets.symmetric(horizontal:16),
+        child:Container(
+          height:52,
+          decoration:BoxDecoration(
+            color:Colors.transparent,
+            borderRadius:BorderRadius.circular(18),
+            border:Border.all(color:stroke.withOpacity(.55)),
+          ),
+          child:TextField(
+            onChanged:(v)=>setState(()=>q=v),
+            style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+            cursorColor:purple,
+            decoration:InputDecoration(
+              prefixIcon:const Icon(Icons.search_rounded,color:muted),
+              hintText:s.searchChats,
+              hintStyle:const TextStyle(color:muted,fontSize:15),
+              filled:false,
+              border:InputBorder.none,
+              enabledBorder:InputBorder.none,
+              focusedBorder:InputBorder.none,
+              contentPadding:const EdgeInsets.symmetric(vertical:15),
+            ),
+          ),
+        ),
+      ),
       const SizedBox(height:10),
       Expanded(child:RefreshIndicator(
         onRefresh:load,
