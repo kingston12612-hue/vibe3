@@ -465,6 +465,9 @@ class _AuthField extends StatelessWidget{
           decoration:InputDecoration(
             isDense:true,
             filled:false,
+            fillColor:Colors.transparent,
+            hoverColor:Colors.transparent,
+            focusColor:Colors.transparent,
             border:InputBorder.none,
             enabledBorder:InputBorder.none,
             focusedBorder:InputBorder.none,
