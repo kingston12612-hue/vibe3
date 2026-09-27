@@ -447,6 +447,12 @@ class _AuthField extends StatelessWidget{
         fillColor:Colors.transparent,
         hoverColor:Colors.transparent,
         focusColor:Colors.transparent,
+        border:InputBorder.none,
+        enabledBorder:InputBorder.none,
+        focusedBorder:InputBorder.none,
+        disabledBorder:InputBorder.none,
+        errorBorder:InputBorder.none,
+        focusedErrorBorder:InputBorder.none,
       ),
     );
     return SizedBox(
@@ -478,7 +484,19 @@ class _AuthField extends StatelessWidget{
                   expands:false,
                   textAlignVertical:TextAlignVertical.center,
                   style:const TextStyle(fontWeight:FontWeight.w600),
-                  decoration:InputDecoration.collapsed(
+                  decoration:const InputDecoration(
+                    border:InputBorder.none,
+                    enabledBorder:InputBorder.none,
+                    focusedBorder:InputBorder.none,
+                    disabledBorder:InputBorder.none,
+                    errorBorder:InputBorder.none,
+                    focusedErrorBorder:InputBorder.none,
+                    filled:false,
+                    fillColor:Colors.transparent,
+                    hoverColor:Colors.transparent,
+                    contentPadding:EdgeInsets.zero,
+                    isCollapsed:true,
+                  ).copyWith(
                     hintText:hint,
                     hintStyle:const TextStyle(color:muted),
                   ),
