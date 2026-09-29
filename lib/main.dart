@@ -448,7 +448,7 @@ class _AuthMode extends StatelessWidget{
   );
 }
 
-class _AuthField extends StatefulWidget{
+class _AuthField extends StatelessWidget{
   final TextEditingController controller;
   final IconData icon;
   final String hint;
@@ -465,60 +465,80 @@ class _AuthField extends StatefulWidget{
     this.keyboardType,
     this.textCapitalization=TextCapitalization.none,
   });
-  @override State<_AuthField> createState()=>_AuthFieldState();
-}
-
-class _AuthFieldState extends State<_AuthField>{
-  late final FocusNode focusNode;
-  @override void initState(){super.initState();focusNode=FocusNode();}
-  @override void dispose(){focusNode.dispose();super.dispose();}
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
-    return Container(
+    final fieldTheme=Theme.of(context).copyWith(
+      inputDecorationTheme:const InputDecorationTheme(
+        filled:false,
+        fillColor:Colors.transparent,
+        hoverColor:Colors.transparent,
+        focusColor:Colors.transparent,
+        border:InputBorder.none,
+        enabledBorder:InputBorder.none,
+        focusedBorder:InputBorder.none,
+        disabledBorder:InputBorder.none,
+        errorBorder:InputBorder.none,
+        focusedErrorBorder:InputBorder.none,
+      ),
+    );
+    return SizedBox(
       height:56,
       width:double.infinity,
-      decoration:BoxDecoration(
-        color:Colors.transparent,
-        borderRadius:BorderRadius.circular(18),
-        border:Border.all(color:dark?stroke.withOpacity(.55):Colors.black12),
-      ),
-      child:Row(
-        children:[
-          const SizedBox(width:16),
-          Icon(widget.icon,color:dark?muted:Colors.black54,size:21),
-          const SizedBox(width:8),
-          Expanded(
-            child:TextField(
-              controller:widget.controller,
-              focusNode:focusNode,
-              obscureText:widget.obscureText,
-              obscuringCharacter:'•',
-              keyboardType:widget.keyboardType??TextInputType.text,
-              textCapitalization:widget.textCapitalization,
-              maxLines:1,
-              style:const TextStyle(fontWeight:FontWeight.w600,fontSize:16),
-              cursorColor:purple,
-              decoration:InputDecoration(
-                hintText:widget.hint,
-                hintStyle:const TextStyle(color:muted,fontSize:16),
-                filled:false,
-                fillColor:Colors.transparent,
-                border:InputBorder.none,
-                enabledBorder:InputBorder.none,
-                focusedBorder:InputBorder.none,
-                disabledBorder:InputBorder.none,
-                contentPadding:EdgeInsets.zero,
-                isDense:true,
-              ),
-            ),
+      child:DecoratedBox(
+        decoration:BoxDecoration(
+          color:Colors.transparent,
+          borderRadius:BorderRadius.circular(18),
+          border:Border.all(
+            color:dark?Colors.white.withOpacity(.10):Colors.black.withOpacity(.08),
           ),
-          if(widget.suffix!=null) widget.suffix!,
-          const SizedBox(width:6),
-        ],
+        ),
+        child:Theme(
+          data:fieldTheme,
+          child:Row(
+            children:[
+              const SizedBox(width:16),
+              Icon(icon,color:dark?muted:Colors.black54),
+              const SizedBox(width:8),
+              Expanded(
+                child:TextField(
+                  controller:controller,
+                  obscureText:obscureText,
+                  keyboardType:keyboardType,
+                  textCapitalization:textCapitalization,
+                  maxLines:1,
+                  minLines:1,
+                  expands:false,
+                  textAlignVertical:TextAlignVertical.center,
+                  style:const TextStyle(fontWeight:FontWeight.w600,fontSize:16),
+                  cursorColor:purple,
+                  decoration:const InputDecoration(
+                    border:InputBorder.none,
+                    enabledBorder:InputBorder.none,
+                    focusedBorder:InputBorder.none,
+                    disabledBorder:InputBorder.none,
+                    errorBorder:InputBorder.none,
+                    focusedErrorBorder:InputBorder.none,
+                    filled:false,
+                    fillColor:Colors.transparent,
+                    hoverColor:Colors.transparent,
+                    contentPadding:EdgeInsets.zero,
+                    isCollapsed:true,
+                  ).copyWith(
+                    hintText:hint,
+                    hintStyle:const TextStyle(color:muted,fontSize:16),
+                  ),
+                ),
+              ),
+              if(suffix!=null) suffix!,
+              const SizedBox(width:6),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
+
 String friendlyError(Object ex,AppStrings s){
   final x=ex.toString().replaceFirst('Exception: ','');
   if(x.contains('email_exists'))return s.emailExists;
