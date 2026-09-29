@@ -519,7 +519,6 @@ class _AuthFieldState extends State<_AuthField>{
                   cursorColor:purple,
                   backgroundCursorColor:muted,
                   selectionColor:purple.withOpacity(.25),
-                  textAlignVertical:TextAlignVertical.center,
                 ),
               ],
             ),
