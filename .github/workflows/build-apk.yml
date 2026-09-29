@@ -71,3 +71,4 @@ jobs:
           name: vibe3-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 # APK build refresh
+# Triggered after latest UI fixes
