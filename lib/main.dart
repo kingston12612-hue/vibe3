@@ -754,7 +754,7 @@ class _ChatsState extends State<Chats>{
               child:Container(
                 height:50,
                 decoration:BoxDecoration(
-                  color:surface.withOpacity(.72),
+                  color:Colors.transparent,
                   borderRadius:BorderRadius.circular(18),
                   border:Border.all(color:stroke.withOpacity(.85)),
                 ),
@@ -830,7 +830,7 @@ class Tile extends StatelessWidget{
         child:Container(
           padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
           decoration:BoxDecoration(
-            color:surface.withOpacity(.82),
+            color:Colors.transparent,
             borderRadius:BorderRadius.circular(22),
             border:Border.all(color:stroke.withOpacity(.72)),
             boxShadow:[BoxShadow(color:Colors.black.withOpacity(.20),blurRadius:18,offset:const Offset(0,8))],
@@ -1020,7 +1020,7 @@ class _ContactsState extends State<Contacts>{
         child:Container(
           height:50,
           decoration:BoxDecoration(
-            color:surface.withOpacity(.72),
+            color:Colors.transparent,
             borderRadius:BorderRadius.circular(18),
             border:Border.all(color:stroke.withOpacity(.85)),
           ),
@@ -1045,7 +1045,7 @@ class _ContactsState extends State<Contacts>{
       const SizedBox(height:10),
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
-        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
+        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Card(color:Colors.transparent,child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
           Avatar(name:u.name,size:52),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:3),Text('@'+u.username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:15),
         ])))));},
       )),
