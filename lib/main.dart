@@ -109,7 +109,7 @@ ThemeData vibeTheme(bool dark){
     scaffoldBackgroundColor:dark?bg:const Color(0xFFF6F4FB),
     canvasColor:dark?bg:const Color(0xFFF6F4FB),
     appBarTheme:AppBarTheme(backgroundColor:(dark?bg:const Color(0xFFF6F4FB)).withOpacity(.96),elevation:0,surfaceTintColor:Colors.transparent),
-    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,surfaceTintColor:Colors.transparent,shadowColor:Colors.transparent,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
+    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
     navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,indicatorColor:purple.withOpacity(.18),height:72,labelTextStyle:WidgetStatePropertyAll(const TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
     inputDecorationTheme:InputDecorationTheme(
       filled:false,
