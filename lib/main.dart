@@ -111,7 +111,18 @@ ThemeData vibeTheme(bool dark){
     appBarTheme:AppBarTheme(backgroundColor:(dark?bg:const Color(0xFFF6F4FB)).withOpacity(.96),elevation:0,surfaceTintColor:Colors.transparent),
     cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
     navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,indicatorColor:purple.withOpacity(.18),height:72,labelTextStyle:WidgetStatePropertyAll(const TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
-    inputDecorationTheme:InputDecorationTheme(filled:false,fillColor:Colors.transparent,hintStyle:TextStyle(color:dark?muted:const Color(0xFF7E7E8E)),border:InputBorder.none,enabledBorder:InputBorder.none,focusedBorder:InputBorder.none,disabledBorder:InputBorder.none),
+    inputDecorationTheme:InputDecorationTheme(
+      filled:false,
+      fillColor:Colors.transparent,
+      hintStyle:TextStyle(color:dark?muted:const Color(0xFF7E7E8E)),
+      border:InputBorder.none,
+      enabledBorder:InputBorder.none,
+      focusedBorder:InputBorder.none,
+      disabledBorder:InputBorder.none,
+      errorBorder:InputBorder.none,
+      focusedErrorBorder:InputBorder.none,
+      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
+    ),
     filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(backgroundColor:purple,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),minimumSize:const Size.fromHeight(52))),
     snackBarTheme:SnackBarThemeData(behavior:SnackBarBehavior.floating,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16))),
   );
@@ -566,38 +577,67 @@ class _ShellState extends State<Shell>{
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(msg)));
     }
   }
-  Widget _tabLayer(int index,Widget child)=>Positioned.fill(
-    child:IgnorePointer(
-      ignoring:tab!=index,
-      child:AnimatedOpacity(
-        opacity:tab==index?1:0,
-        duration:const Duration(milliseconds:220),
-        curve:Curves.easeOutCubic,
-        child:AnimatedSlide(
-          offset:tab==index?Offset.zero:const Offset(0.018,0),
-          duration:const Duration(milliseconds:260),
-          curve:Curves.easeOutCubic,
-          child:child,
-        ),
-      ),
-    ),
-  );
   @override Widget build(BuildContext context){
     final s=S(context);
+    final current=tab==0
+      ?Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))
+      :tab==1
+        ?Contacts(onOpen:openPerson)
+        :tab==2
+          ?const Calls()
+          :Settings(
+              name:widget.name,
+              username:widget.username,
+              light:widget.light,
+              language:widget.language,
+              notifications:widget.notifications,
+              onTheme:widget.onTheme,
+              onLanguage:widget.onLanguage,
+              onNotifications:widget.onNotifications,
+              onProfile:widget.onProfile,
+              onLogout:widget.onLogout,
+            );
     return Scaffold(
       extendBody:true,
       backgroundColor:bg,
       body:SafeArea(
         bottom:false,
-        child:Stack(children:[
-          const Positioned.fill(child:VibeAnimatedBackground()),
-          Positioned.fill(child:Stack(children:[
-            _tabLayer(0,Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))),
-            _tabLayer(1,Contacts(onOpen:openPerson)),
-            _tabLayer(2,const Calls()),
-            _tabLayer(3,Settings(name:widget.name,username:widget.username,light:widget.light,language:widget.language,notifications:widget.notifications,onTheme:widget.onTheme,onLanguage:widget.onLanguage,onNotifications:widget.onNotifications,onProfile:widget.onProfile,onLogout:widget.onLogout)),
-          ])),
-        ]),
+        child:Stack(
+          children:[
+            const Positioned.fill(child:VibeAnimatedBackground()),
+            Positioned.fill(
+              child:AnimatedSwitcher(
+                duration:const Duration(milliseconds:260),
+                switchInCurve:Curves.easeOutCubic,
+                switchOutCurve:Curves.easeInCubic,
+                layoutBuilder:(currentChild,previousChildren)=>Stack(
+                  alignment:Alignment.topCenter,
+                  children:[
+                    ...previousChildren,
+                    if(currentChild!=null)currentChild,
+                  ],
+                ),
+                transitionBuilder:(child,animation)=>FadeTransition(
+                  opacity:animation,
+                  child:SlideTransition(
+                    position:Tween<Offset>(
+                      begin:const Offset(.018,0),
+                      end:Offset.zero,
+                    ).animate(CurvedAnimation(
+                      parent:animation,
+                      curve:Curves.easeOutCubic,
+                    )),
+                    child:child,
+                  ),
+                ),
+                child:KeyedSubtree(
+                  key:ValueKey(tab),
+                  child:current,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
       bottomNavigationBar:SafeArea(
         top:false,
@@ -975,7 +1015,33 @@ class _ContactsState extends State<Contacts>{
     final s=S(context);
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
-      Padding(padding:const EdgeInsets.symmetric(horizontal:16),child:TextField(onChanged:(v){q=v.trim();search();},decoration:InputDecoration(prefixIcon:const Icon(Icons.search_rounded),hintText:s.findPeopleHint))),
+      Padding(
+        padding:const EdgeInsets.fromLTRB(16,0,16,2),
+        child:Container(
+          height:50,
+          decoration:BoxDecoration(
+            color:surface.withOpacity(.72),
+            borderRadius:BorderRadius.circular(18),
+            border:Border.all(color:stroke.withOpacity(.85)),
+          ),
+          child:TextField(
+            onChanged:(v){q=v.trim();search();},
+            style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+            cursorColor:purple,
+            decoration:InputDecoration(
+              prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
+              hintText:s.findPeopleHint,
+              hintStyle:const TextStyle(color:muted,fontSize:14),
+              filled:false,
+              fillColor:Colors.transparent,
+              border:InputBorder.none,
+              enabledBorder:InputBorder.none,
+              focusedBorder:InputBorder.none,
+              contentPadding:const EdgeInsets.symmetric(vertical:14),
+            ),
+          ),
+        ),
+      ),
       const SizedBox(height:10),
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
@@ -1002,7 +1068,10 @@ class Settings extends StatelessWidget{
   const Settings({super.key,required this.name,required this.username,required this.light,required this.language,required this.notifications,required this.onTheme,required this.onLanguage,required this.onNotifications,required this.onProfile,required this.onLogout});
   @override Widget build(BuildContext context){
     final s=S(context);
-    return ListView(padding:const EdgeInsets.fromLTRB(18,16,18,30),children:[
+    return ListView(
+      keyboardDismissBehavior:ScrollViewKeyboardDismissBehavior.onDrag,
+      padding:const EdgeInsets.fromLTRB(18,16,18,110),
+      children:[
       const _VibeWordmark(),const SizedBox(height:18),
       Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>edit(context),child:Padding(padding:const EdgeInsets.all(13),child:Row(children:[
         Avatar(name:name,size:62),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),const SizedBox(height:3),Text('@'+username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:16),
