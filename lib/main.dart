@@ -109,7 +109,7 @@ ThemeData vibeTheme(bool dark){
     scaffoldBackgroundColor:dark?bg:const Color(0xFFF6F4FB),
     canvasColor:dark?bg:const Color(0xFFF6F4FB),
     appBarTheme:AppBarTheme(backgroundColor:(dark?bg:const Color(0xFFF6F4FB)).withOpacity(.96),elevation:0,surfaceTintColor:Colors.transparent),
-    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
+    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,surfaceTintColor:Colors.transparent,shadowColor:Colors.transparent,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
     navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,indicatorColor:purple.withOpacity(.18),height:72,labelTextStyle:WidgetStatePropertyAll(const TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
     inputDecorationTheme:InputDecorationTheme(
       filled:false,
@@ -750,14 +750,9 @@ class _ChatsState extends State<Chats>{
               ),
             ),
             Padding(
-              padding:const EdgeInsets.fromLTRB(16,8,16,12),
-              child:Container(
+              padding:const EdgeInsets.fromLTRB(22,8,22,12),
+              child:SizedBox(
                 height:50,
-                decoration:BoxDecoration(
-                  color:Colors.transparent,
-                  borderRadius:BorderRadius.circular(18),
-                  border:Border.all(color:stroke.withOpacity(.85)),
-                ),
                 child:TextField(
                   onChanged:(v)=>setState(()=>q=v),
                   style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
@@ -767,9 +762,14 @@ class _ChatsState extends State<Chats>{
                     hintText:s.searchChats,
                     hintStyle:const TextStyle(color:muted,fontSize:14),
                     filled:false,
+                    fillColor:Colors.transparent,
+                    hoverColor:Colors.transparent,
                     border:InputBorder.none,
                     enabledBorder:InputBorder.none,
                     focusedBorder:InputBorder.none,
+                    disabledBorder:InputBorder.none,
+                    errorBorder:InputBorder.none,
+                    focusedErrorBorder:InputBorder.none,
                     contentPadding:const EdgeInsets.symmetric(vertical:14),
                   ),
                 ),
@@ -823,18 +823,14 @@ class Tile extends StatelessWidget{
   const Tile({super.key,required this.chat,required this.tap});
   @override Widget build(BuildContext context){
     return Material(
-      color:Colors.transparent,
+      type:MaterialType.transparency,
       child:InkWell(
         onTap:tap,
         borderRadius:BorderRadius.circular(22),
-        child:Container(
-          padding:const EdgeInsets.symmetric(horizontal:12,vertical:11),
-          decoration:BoxDecoration(
-            color:Colors.transparent,
-            borderRadius:BorderRadius.circular(22),
-            border:Border.all(color:stroke.withOpacity(.72)),
-            boxShadow:[BoxShadow(color:Colors.black.withOpacity(.20),blurRadius:18,offset:const Offset(0,8))],
-          ),
+        splashColor:purple.withOpacity(.06),
+        highlightColor:purple.withOpacity(.035),
+        child:Padding(
+          padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
           child:Row(
             children:[
               Avatar(name:chat.name,size:56),
@@ -1045,9 +1041,27 @@ class _ContactsState extends State<Contacts>{
       const SizedBox(height:10),
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
-        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Card(color:Colors.transparent,child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>widget.onOpen(u),child:Padding(padding:const EdgeInsets.all(10),child:Row(children:[
-          Avatar(name:u.name,size:52),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:3),Text('@'+u.username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:15),
-        ])))));},
+        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Material(
+          type:MaterialType.transparency,
+          child:InkWell(
+            borderRadius:BorderRadius.circular(22),
+            splashColor:purple.withOpacity(.06),
+            highlightColor:purple.withOpacity(.035),
+            onTap:()=>widget.onOpen(u),
+            child:Padding(
+              padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
+              child:Row(children:[
+                Avatar(name:u.name,size:52),const SizedBox(width:12),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),
+                  const SizedBox(height:3),
+                  Text('@'+u.username,style:const TextStyle(color:muted))
+                ])),
+                const Icon(Icons.arrow_forward_ios_rounded,size:15),
+              ]),
+            ),
+          ),
+        )));},
       )),
     ]);
   }
@@ -1059,6 +1073,22 @@ class Calls extends StatelessWidget{
     final s=S(context);
     return Column(children:[Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Align(alignment:Alignment.centerLeft,child:Text(s.calls,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900)))),Expanded(child:EmptyState(icon:Icons.call_rounded,title:s.callsNext,sub:s.callsSub))]);
   }
+}
+
+class _SettingsItem extends StatelessWidget{
+  final Widget child;
+  final VoidCallback? onTap;
+  const _SettingsItem({required this.child,this.onTap});
+  @override Widget build(BuildContext context)=>Material(
+    type:MaterialType.transparency,
+    child:InkWell(
+      onTap:onTap,
+      borderRadius:BorderRadius.circular(20),
+      splashColor:purple.withOpacity(.06),
+      highlightColor:purple.withOpacity(.035),
+      child:child,
+    ),
+  );
 }
 
 class Settings extends StatelessWidget{
@@ -1073,13 +1103,43 @@ class Settings extends StatelessWidget{
       padding:const EdgeInsets.fromLTRB(18,16,18,110),
       children:[
       const _VibeWordmark(),const SizedBox(height:18),
-      Card(child:InkWell(borderRadius:BorderRadius.circular(22),onTap:()=>edit(context),child:Padding(padding:const EdgeInsets.all(13),child:Row(children:[
-        Avatar(name:name,size:62),const SizedBox(width:12),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),const SizedBox(height:3),Text('@'+username,style:const TextStyle(color:muted))])),const Icon(Icons.arrow_forward_ios_rounded,size:16),
-      ])))),
-      const SizedBox(height:12),
-      Card(child:SwitchListTile(value:!light,onChanged:(v)=>onTheme(!v),secondary:const Icon(Icons.nights_stay_outlined),title:Text(s.darkY2K,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text(s.darkY2KSub,style:const TextStyle(color:muted)))),
-      const SizedBox(height:12),
-      Card(child:SwitchListTile(value:notifications,onChanged:onNotifications,secondary:const Icon(Icons.notifications_none_rounded),title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text(notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)))),
+      _SettingsItem(
+        onTap:()=>edit(context),
+        child:Padding(
+          padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
+          child:Row(children:[
+            Avatar(name:name,size:62),const SizedBox(width:12),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+              const SizedBox(height:3),
+              Text('@'+username,style:const TextStyle(color:muted))
+            ])),
+            const Icon(Icons.arrow_forward_ios_rounded,size:16),
+          ]),
+        ),
+      ),
+      const SizedBox(height:6),
+      _SettingsItem(
+        child:SwitchListTile(
+          contentPadding:const EdgeInsets.symmetric(horizontal:4),
+          value:!light,
+          onChanged:(v)=>onTheme(!v),
+          secondary:const Icon(Icons.nights_stay_outlined),
+          title:Text(s.darkY2K,style:const TextStyle(fontWeight:FontWeight.w800)),
+          subtitle:Text(s.darkY2KSub,style:const TextStyle(color:muted)),
+        ),
+      ),
+      const SizedBox(height:6),
+      _SettingsItem(
+        child:SwitchListTile(
+          contentPadding:const EdgeInsets.symmetric(horizontal:4),
+          value:notifications,
+          onChanged:onNotifications,
+          secondary:const Icon(Icons.notifications_none_rounded),
+          title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),
+          subtitle:Text(notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
+        ),
+      ),
       section(context,s.language,[ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context))]),
       section(context,s.security,[
         ListTile(leading:const Icon(Icons.lock_outline_rounded),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,s.privacy,s.privacyBody)),
@@ -1090,7 +1150,22 @@ class Settings extends StatelessWidget{
       OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:Text(s.signOut),style:OutlinedButton.styleFrom(minimumSize:const Size.fromHeight(52),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)))),
     ]);
   }
-  Widget section(BuildContext c,String title,List<Widget> children)=>Padding(padding:const EdgeInsets.only(top:14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Padding(padding:const EdgeInsets.only(left:4,bottom:7),child:Text(title.toUpperCase(),style:const TextStyle(color:muted,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:1.2))),Card(child:Column(children:children))]));
+  Widget section(BuildContext c,String title,List<Widget> children)=>Padding(
+    padding:const EdgeInsets.only(top:14),
+    child:Column(
+      crossAxisAlignment:CrossAxisAlignment.start,
+      children:[
+        Padding(
+          padding:const EdgeInsets.only(left:4,bottom:7),
+          child:Text(title.toUpperCase(),style:const TextStyle(color:muted,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:1.2)),
+        ),
+        Material(
+          type:MaterialType.transparency,
+          child:Column(children:children),
+        ),
+      ],
+    ),
+  );
   void languagePicker(BuildContext context){
     final s=S(context);
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
