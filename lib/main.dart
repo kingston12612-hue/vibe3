@@ -722,7 +722,7 @@ class _ShellState extends State<Shell>{
           child:Container(
             height:66,
             decoration:BoxDecoration(
-              color:surface.withOpacity(.94),
+              color:const Color(0xFF0C0C13).withOpacity(.88),
               borderRadius:BorderRadius.circular(24),
               border:Border.all(color:stroke.withOpacity(.9)),
               boxShadow:[BoxShadow(color:purple.withOpacity(.10),blurRadius:28,spreadRadius:-8,offset:const Offset(0,8))],
@@ -827,29 +827,7 @@ class _ChatsState extends State<Chats>{
             ),
             Padding(
               padding:const EdgeInsets.fromLTRB(22,8,22,12),
-              child:SizedBox(
-                height:50,
-                child:TextField(
-                  onChanged:(v)=>setState(()=>q=v),
-                  style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
-                  cursorColor:purple,
-                  decoration:InputDecoration(
-                    prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
-                    hintText:s.searchChats,
-                    hintStyle:const TextStyle(color:muted,fontSize:14),
-                    filled:false,
-                    fillColor:Colors.transparent,
-                    hoverColor:Colors.transparent,
-                    border:InputBorder.none,
-                    enabledBorder:InputBorder.none,
-                    focusedBorder:InputBorder.none,
-                    disabledBorder:InputBorder.none,
-                    errorBorder:InputBorder.none,
-                    focusedErrorBorder:InputBorder.none,
-                    contentPadding:const EdgeInsets.symmetric(vertical:14),
-                  ),
-                ),
-              ),
+              child:_GlassSearchField(hint:s.searchChats,onChanged:(v)=>setState(()=>q=v)),
             ),
             Expanded(
               child:RefreshIndicator(
@@ -894,6 +872,55 @@ class ChatSearch extends SearchDelegate<Chat?>{
   }
 }
 
+class _GlassSearchField extends StatelessWidget{
+  final String hint;
+  final ValueChanged<String> onChanged;
+  const _GlassSearchField({required this.hint,required this.onChanged});
+  @override Widget build(BuildContext context){
+    final dark=Theme.of(context).brightness==Brightness.dark;
+    return Container(
+      height:50,
+      decoration:BoxDecoration(
+        color:dark?const Color(0xFF11111A).withOpacity(.78):Colors.white.withOpacity(.86),
+        borderRadius:BorderRadius.circular(18),
+        border:Border.all(color:dark?stroke.withOpacity(.82):Colors.black12),
+        boxShadow:[BoxShadow(color:purple.withOpacity(.07),blurRadius:22,spreadRadius:-8,offset:const Offset(0,7))],
+      ),
+      child:TextField(
+        onChanged:onChanged,
+        style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+        cursorColor:purple,
+        decoration:InputDecoration(
+          prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
+          hintText:hint,
+          hintStyle:const TextStyle(color:muted,fontSize:14),
+          filled:false,
+          border:InputBorder.none,
+          enabledBorder:InputBorder.none,
+          focusedBorder:InputBorder.none,
+          contentPadding:const EdgeInsets.symmetric(vertical:14),
+        ),
+      ),
+    );
+  }
+}
+
+class _Y2KGrid extends CustomPainter{
+  final Color color;
+  _Y2KGrid(this.color);
+  @override void paint(Canvas canvas,Size size){
+    final p=Paint()..color=color..strokeWidth=.55;
+    const step=38.0;
+    for(double x=0;x<size.width;x+=step){canvas.drawLine(Offset(x,0),Offset(x,size.height),p);}
+    for(double y=0;y<size.height;y+=step){canvas.drawLine(Offset(0,y),Offset(size.width,y),p);}
+    final glow=Paint()..color=color.withOpacity(.16)..style=PaintingStyle.fill;
+    for(final o in [Offset(size.width*.12,size.height*.18),Offset(size.width*.82,size.height*.28),Offset(size.width*.62,size.height*.78)]){
+      canvas.drawCircle(o,2.2,glow);
+    }
+  }
+  @override bool shouldRepaint(covariant _Y2KGrid oldDelegate)=>oldDelegate.color!=color;
+}
+
 class Tile extends StatelessWidget{
   final Chat chat;final VoidCallback tap;
   const Tile({super.key,required this.chat,required this.tap});
@@ -905,8 +932,11 @@ class Tile extends StatelessWidget{
         borderRadius:BorderRadius.circular(22),
         splashColor:purple.withOpacity(.06),
         highlightColor:purple.withOpacity(.035),
-        child:Padding(
+        child:Container(
           padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
+          decoration:BoxDecoration(
+            border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7)),
+          ),
           child:Row(
             children:[
               Avatar(name:chat.name,size:56),
@@ -939,7 +969,12 @@ class Avatar extends StatelessWidget{
   const Avatar({super.key,required this.name,this.size=46});
   @override Widget build(BuildContext context){
     const colors=[purple,pink,blue,green];final i=name.isEmpty?0:name.codeUnitAt(0)%colors.length;
-    return Container(width:size,height:size,alignment:Alignment.center,decoration:BoxDecoration(shape:BoxShape.circle,gradient:LinearGradient(colors:[colors[i],colors[(i+1)%colors.length]]),boxShadow:[BoxShadow(color:colors[i].withOpacity(.2),blurRadius:16)]),child:Text(name.isEmpty?'?':name[0].toUpperCase(),style:TextStyle(color:Colors.white,fontSize:size*.34,fontWeight:FontWeight.w900)));
+    return Container(width:size,height:size,alignment:Alignment.center,decoration:BoxDecoration(
+        shape:BoxShape.circle,
+        gradient:LinearGradient(colors:[colors[i],colors[(i+1)%colors.length]]),
+        border:Border.all(color:Colors.white.withOpacity(.16),width:1),
+        boxShadow:[BoxShadow(color:colors[i].withOpacity(.24),blurRadius:18,spreadRadius:-2)],
+      ),child:Text(name.isEmpty?'?':name[0].toUpperCase(),style:TextStyle(color:Colors.white,fontSize:size*.34,fontWeight:FontWeight.w900)));
   }
 }
 
@@ -996,10 +1031,19 @@ class _ChatState extends State<ChatPage>{
         IconButton(tooltip:s.profile,onPressed:()=>showChatMenu(context),icon:const Icon(Icons.more_horiz_rounded)),
       ]),
       body:Column(children:[
-        Expanded(child:DecoratedBox(
-          decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(.035),Colors.transparent,pink.withOpacity(.03)])),
-          child:loading?const Center(child:CircularProgressIndicator()):msgs.isEmpty?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub):ListView.builder(controller:scroll,padding:const EdgeInsets.fromLTRB(14,18,14,14),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(key:ValueKey(msgs[i].id),msg:msgs[i])),
-        )),
+        Expanded(
+          child:Stack(
+            children:[
+              Positioned.fill(child:CustomPaint(painter:_Y2KGrid(stroke.withOpacity(.34)))),
+              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(.045),Colors.transparent,pink.withOpacity(.035)])))),
+              loading
+                ?const Center(child:CircularProgressIndicator())
+                :msgs.isEmpty
+                  ?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub)
+                  :ListView.builder(controller:scroll,padding:const EdgeInsets.fromLTRB(14,18,14,14),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(key:ValueKey(msgs[i].id),msg:msgs[i])),
+            ],
+          ),
+        ),
         SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(10,6,10,10),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
           _CircleAction(icon:Icons.add_rounded,onTap:()=>showAttachments(context)),const SizedBox(width:8),
           Expanded(child:TextField(controller:input,maxLines:5,decoration:InputDecoration(hintText:s.messageHint,contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:13)))),
@@ -1089,29 +1133,7 @@ class _ContactsState extends State<Contacts>{
       Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
       Padding(
         padding:const EdgeInsets.fromLTRB(20,0,20,2),
-        child:SizedBox(
-          height:50,
-          child:TextField(
-            onChanged:(v){q=v.trim();search();},
-            style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
-            cursorColor:purple,
-            decoration:InputDecoration(
-              prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
-              hintText:s.findPeopleHint,
-              hintStyle:const TextStyle(color:muted,fontSize:14),
-              filled:false,
-              fillColor:Colors.transparent,
-              hoverColor:Colors.transparent,
-              border:InputBorder.none,
-              enabledBorder:InputBorder.none,
-              focusedBorder:InputBorder.none,
-              disabledBorder:InputBorder.none,
-              errorBorder:InputBorder.none,
-              focusedErrorBorder:InputBorder.none,
-              contentPadding:const EdgeInsets.symmetric(vertical:14),
-            ),
-          ),
-        ),
+        child:_GlassSearchField(hint:s.findPeopleHint,onChanged:(v){q=v.trim();search();}),
       ),
       const SizedBox(height:10),
       Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
@@ -1123,8 +1145,11 @@ class _ContactsState extends State<Contacts>{
             splashColor:purple.withOpacity(.06),
             highlightColor:purple.withOpacity(.035),
             onTap:()=>widget.onOpen(u),
-            child:Padding(
+            child:Container(
               padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
+              decoration:BoxDecoration(
+                border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7)),
+              ),
               child:Row(children:[
                 Avatar(name:u.name,size:52),const SizedBox(width:12),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
