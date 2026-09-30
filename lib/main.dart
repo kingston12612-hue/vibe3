@@ -872,33 +872,90 @@ class ChatSearch extends SearchDelegate<Chat?>{
   }
 }
 
+class _BareField extends StatefulWidget{
+  final TextEditingController? controller;
+  final String hint;
+  final IconData? icon;
+  final TextInputType? keyboardType;
+  final int maxLines;
+  final ValueChanged<String>? onChanged;
+  const _BareField({this.controller,required this.hint,this.icon,this.keyboardType,this.maxLines=1,this.onChanged});
+  @override State<_BareField> createState()=>_BareFieldState();
+}
+class _BareFieldState extends State<_BareField>{
+  late final TextEditingController controller;
+  late final FocusNode focusNode;
+  bool ownController=false;
+  @override void initState(){
+    super.initState();
+    if(widget.controller!=null){
+      controller=widget.controller!;
+    }else{
+      controller=TextEditingController();
+      ownController=true;
+    }
+    focusNode=FocusNode();
+  }
+  @override void dispose(){
+    focusNode.dispose();
+    if(ownController)controller.dispose();
+    super.dispose();
+  }
+  @override Widget build(BuildContext context){
+    final multi=widget.maxLines>1;
+    return SizedBox(
+      height:multi?null:50,
+      width:double.infinity,
+      child:Row(
+        crossAxisAlignment:multi?CrossAxisAlignment.start:CrossAxisAlignment.center,
+        children:[
+          if(widget.icon!=null)Padding(
+            padding:EdgeInsets.only(left:0,right:9,top:multi?14:0),
+            child:Icon(widget.icon,color:muted,size:21),
+          ),
+          Expanded(
+            child:Stack(
+              alignment:multi?Alignment.topLeft:Alignment.centerLeft,
+              children:[
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable:controller,
+                  builder:(context,value,_){
+                    if(value.text.isNotEmpty)return const SizedBox.shrink();
+                    return IgnorePointer(
+                      child:Padding(
+                        padding:EdgeInsets.only(top:multi?14:0),
+                        child:Text(widget.hint,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:15,fontWeight:FontWeight.w500)),
+                      ),
+                    );
+                  },
+                ),
+                EditableText(
+                  controller:controller,
+                  focusNode:focusNode,
+                  obscureText:false,
+                  keyboardType:widget.keyboardType??(multi?TextInputType.multiline:TextInputType.text),
+                  textInputAction:multi?TextInputAction.newline:TextInputAction.done,
+                  maxLines:multi?widget.maxLines:1,
+                  minLines:1,
+                  style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+                  cursorColor:purple,
+                  backgroundCursorColor:muted,
+                  selectionColor:purple.withOpacity(.25),
+                  textAlignVertical:multi?TextAlignVertical.top:TextAlignVertical.center,
+                  onChanged:widget.onChanged,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+}
 class _GlassSearchField extends StatelessWidget{
   final String hint;
   final ValueChanged<String> onChanged;
   const _GlassSearchField({required this.hint,required this.onChanged});
-  @override Widget build(BuildContext context)=>SizedBox(
-    height:50,
-    child:TextField(
-      onChanged:onChanged,
-      style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
-      cursorColor:purple,
-      decoration:InputDecoration(
-        prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
-        hintText:hint,
-        hintStyle:const TextStyle(color:muted,fontSize:14),
-        filled:false,
-        fillColor:Colors.transparent,
-        hoverColor:Colors.transparent,
-        border:InputBorder.none,
-        enabledBorder:InputBorder.none,
-        focusedBorder:InputBorder.none,
-        disabledBorder:InputBorder.none,
-        errorBorder:InputBorder.none,
-        focusedErrorBorder:InputBorder.none,
-        contentPadding:const EdgeInsets.symmetric(vertical:14),
-      ),
-    ),
-  );
+  @override Widget build(BuildContext context)=>_BareField(hint:hint,icon:Icons.search_rounded,onChanged:onChanged);
 }
 
 class _Y2KGrid extends CustomPainter{
@@ -1042,7 +1099,7 @@ class _ChatState extends State<ChatPage>{
         ),
         SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(10,6,10,10),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
           _CircleAction(icon:Icons.add_rounded,onTap:()=>showAttachments(context)),const SizedBox(width:8),
-          Expanded(child:TextField(controller:input,maxLines:5,decoration:InputDecoration(hintText:s.messageHint,contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:13)))),
+          Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:0,vertical:1),child:_BareField(controller:input,hint:s.messageHint,maxLines:5)),
           const SizedBox(width:8),_CircleAction(icon:Icons.arrow_upward_rounded,filled:true,busy:sending,onTap:send),
         ]))),
       ]),
@@ -1275,7 +1332,13 @@ class Settings extends StatelessWidget{
     final s=S(context);final n=TextEditingController(text:name);final u=TextEditingController(text:username);bool busy=false;
     showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setLocal)=>AlertDialog(
       title:Text(s.editProfile),
-      content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:n,decoration:InputDecoration(labelText:s.name)),const SizedBox(height:11),TextField(controller:u,decoration:InputDecoration(labelText:s.username,prefixText:'@')),const SizedBox(height:7),Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:const TextStyle(color:muted,fontSize:11)))]),
+      content:Column(mainAxisSize:MainAxisSize.min,children:[
+        _BareField(controller:n,hint:s.name),
+        const SizedBox(height:11),
+        Row(children:[const Text('@',style:TextStyle(color:muted,fontSize:16)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.username))]),
+        const SizedBox(height:7),
+        Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:const TextStyle(color:muted,fontSize:11)))
+      ]),
       actions:[
         TextButton(onPressed:busy?null:()=>Navigator.pop(ctx),child:Text(s.cancel)),
         FilledButton(onPressed:busy?null:()async{
