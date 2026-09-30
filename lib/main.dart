@@ -862,6 +862,30 @@ class _ChatsState extends State<Chats>{
 
 class ChatSearch extends SearchDelegate<Chat?>{
   final List<Chat> list;ChatSearch(this.list);
+  @override ThemeData appBarTheme(BuildContext context){
+    final theme=Theme.of(context);
+    return theme.copyWith(
+      appBarTheme:theme.appBarTheme.copyWith(
+        backgroundColor:bg,
+        foregroundColor:theme.colorScheme.onSurface,
+        elevation:0,
+        scrolledUnderElevation:0,
+        surfaceTintColor:Colors.transparent,
+      ),
+      inputDecorationTheme:const InputDecorationTheme(
+        filled:false,
+        fillColor:Colors.transparent,
+        hoverColor:Colors.transparent,
+        focusColor:Colors.transparent,
+        border:InputBorder.none,
+        enabledBorder:InputBorder.none,
+        focusedBorder:InputBorder.none,
+        disabledBorder:InputBorder.none,
+        errorBorder:InputBorder.none,
+        focusedErrorBorder:InputBorder.none,
+      ),
+    );
+  }
   @override List<Widget>? buildActions(BuildContext c)=>[IconButton(onPressed:()=>query='',icon:const Icon(Icons.clear_rounded))];
   @override Widget buildLeading(BuildContext c)=>IconButton(onPressed:()=>close(c,null),icon:const Icon(Icons.arrow_back_rounded));
   @override Widget buildResults(BuildContext c)=>result(c);
