@@ -104,16 +104,82 @@ class AppStrings {
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
 
 ThemeData vibeTheme(bool dark){
-  final base=ThemeData(useMaterial3:true,brightness:dark?Brightness.dark:Brightness.light,colorScheme:ColorScheme.fromSeed(seedColor:purple,brightness:dark?Brightness.dark:Brightness.light));
-  return base.copyWith(
-    scaffoldBackgroundColor:dark?bg:const Color(0xFFF6F4FB),
-    canvasColor:dark?bg:const Color(0xFFF6F4FB),
-    appBarTheme:AppBarTheme(backgroundColor:(dark?bg:const Color(0xFFF6F4FB)).withOpacity(.96),elevation:0,surfaceTintColor:Colors.transparent),
-    cardTheme:CardTheme(color:dark?surface:Colors.white,elevation:0,margin:EdgeInsets.zero,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:dark?stroke:Colors.black12))),
-    navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,indicatorColor:purple.withOpacity(.18),height:72,labelTextStyle:WidgetStatePropertyAll(const TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
+  final pageBg=dark?bg:const Color(0xFFF6F4FB);
+  final cs=ColorScheme.fromSeed(
+    seedColor:purple,
+    brightness:dark?Brightness.dark:Brightness.light,
+  ).copyWith(
+    surface:pageBg,
+    surfaceDim:dark?const Color(0xFF07070C):const Color(0xFFE9E7EE),
+    surfaceBright:dark?surface2:Colors.white,
+    surfaceContainerLowest:pageBg,
+    surfaceContainerLow:dark?const Color(0xFF0F0F15):const Color(0xFFF1EFF6),
+    surfaceContainer:dark?surface:pageBg,
+    surfaceContainerHigh:dark?surface2:const Color(0xFFECEAF2),
+    surfaceContainerHighest:dark?const Color(0xFF22222D):const Color(0xFFE4E2E9),
+    surfaceVariant:dark?surface2:const Color(0xFFE6E3EA),
+    onSurface:dark?const Color(0xFFF4F4FF):const Color(0xFF1B1B22),
+    onSurfaceVariant:dark?muted:const Color(0xFF666675),
+  );
+  return ThemeData(
+    useMaterial3:true,
+    brightness:dark?Brightness.dark:Brightness.light,
+    colorScheme:cs,
+    scaffoldBackgroundColor:pageBg,
+    canvasColor:pageBg,
+    cardTheme:CardTheme(
+      color:dark?surface:Colors.white,
+      elevation:0,
+      margin:EdgeInsets.zero,
+      surfaceTintColor:Colors.transparent,
+      shadowColor:Colors.transparent,
+      shape:RoundedRectangleBorder(
+        borderRadius:BorderRadius.circular(22),
+        side:BorderSide(color:dark?stroke:Colors.black12),
+      ),
+    ),
+    appBarTheme:AppBarTheme(
+      backgroundColor:pageBg,
+      foregroundColor:cs.onSurface,
+      elevation:0,
+      scrolledUnderElevation:0,
+      surfaceTintColor:Colors.transparent,
+    ),
+    bottomSheetTheme:BottomSheetThemeData(
+      backgroundColor:dark?surface:Colors.white,
+      surfaceTintColor:Colors.transparent,
+      modalBackgroundColor:dark?surface:Colors.white,
+      elevation:0,
+      showDragHandle:true,
+    ),
+    dialogTheme:DialogTheme(
+      backgroundColor:dark?surface:Colors.white,
+      surfaceTintColor:Colors.transparent,
+      elevation:0,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(24)),
+    ),
+    popupMenuTheme:PopupMenuThemeData(
+      color:dark?surface:Colors.white,
+      surfaceTintColor:Colors.transparent,
+      elevation:0,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+    ),
+    navigationBarTheme:NavigationBarThemeData(
+      backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,
+      indicatorColor:purple.withOpacity(.18),
+      height:72,
+      labelTextStyle:WidgetStatePropertyAll(
+        const TextStyle(fontSize:11,fontWeight:FontWeight.w800),
+      ),
+    ),
+    listTileTheme:ListTileThemeData(
+      tileColor:Colors.transparent,
+      selectedTileColor:purple.withOpacity(.10),
+    ),
     inputDecorationTheme:InputDecorationTheme(
       filled:false,
       fillColor:Colors.transparent,
+      hoverColor:Colors.transparent,
       hintStyle:TextStyle(color:dark?muted:const Color(0xFF7E7E8E)),
       border:InputBorder.none,
       enabledBorder:InputBorder.none,
@@ -123,8 +189,18 @@ ThemeData vibeTheme(bool dark){
       focusedErrorBorder:InputBorder.none,
       contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
     ),
-    filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(backgroundColor:purple,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),minimumSize:const Size.fromHeight(52))),
-    snackBarTheme:SnackBarThemeData(behavior:SnackBarBehavior.floating,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16))),
+    filledButtonTheme:FilledButtonThemeData(
+      style:FilledButton.styleFrom(
+        backgroundColor:purple,
+        foregroundColor:Colors.white,
+        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+        minimumSize:const Size.fromHeight(52),
+      ),
+    ),
+    snackBarTheme:SnackBarThemeData(
+      behavior:SnackBarBehavior.floating,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
+    ),
   );
 }
 
@@ -1012,14 +1088,9 @@ class _ContactsState extends State<Contacts>{
     return Column(children:[
       Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
       Padding(
-        padding:const EdgeInsets.fromLTRB(16,0,16,2),
-        child:Container(
+        padding:const EdgeInsets.fromLTRB(20,0,20,2),
+        child:SizedBox(
           height:50,
-          decoration:BoxDecoration(
-            color:Colors.transparent,
-            borderRadius:BorderRadius.circular(18),
-            border:Border.all(color:stroke.withOpacity(.85)),
-          ),
           child:TextField(
             onChanged:(v){q=v.trim();search();},
             style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
@@ -1030,9 +1101,13 @@ class _ContactsState extends State<Contacts>{
               hintStyle:const TextStyle(color:muted,fontSize:14),
               filled:false,
               fillColor:Colors.transparent,
+              hoverColor:Colors.transparent,
               border:InputBorder.none,
               enabledBorder:InputBorder.none,
               focusedBorder:InputBorder.none,
+              disabledBorder:InputBorder.none,
+              errorBorder:InputBorder.none,
+              focusedErrorBorder:InputBorder.none,
               contentPadding:const EdgeInsets.symmetric(vertical:14),
             ),
           ),
