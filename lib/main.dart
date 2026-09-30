@@ -876,33 +876,29 @@ class _GlassSearchField extends StatelessWidget{
   final String hint;
   final ValueChanged<String> onChanged;
   const _GlassSearchField({required this.hint,required this.onChanged});
-  @override Widget build(BuildContext context){
-    final dark=Theme.of(context).brightness==Brightness.dark;
-    return Container(
-      height:50,
-      decoration:BoxDecoration(
-        color:dark?const Color(0xFF11111A).withOpacity(.78):Colors.white.withOpacity(.86),
-        borderRadius:BorderRadius.circular(18),
-        border:Border.all(color:dark?stroke.withOpacity(.82):Colors.black12),
-        boxShadow:[BoxShadow(color:purple.withOpacity(.07),blurRadius:22,spreadRadius:-8,offset:const Offset(0,7))],
+  @override Widget build(BuildContext context)=>SizedBox(
+    height:50,
+    child:TextField(
+      onChanged:onChanged,
+      style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
+      cursorColor:purple,
+      decoration:InputDecoration(
+        prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
+        hintText:hint,
+        hintStyle:const TextStyle(color:muted,fontSize:14),
+        filled:false,
+        fillColor:Colors.transparent,
+        hoverColor:Colors.transparent,
+        border:InputBorder.none,
+        enabledBorder:InputBorder.none,
+        focusedBorder:InputBorder.none,
+        disabledBorder:InputBorder.none,
+        errorBorder:InputBorder.none,
+        focusedErrorBorder:InputBorder.none,
+        contentPadding:const EdgeInsets.symmetric(vertical:14),
       ),
-      child:TextField(
-        onChanged:onChanged,
-        style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
-        cursorColor:purple,
-        decoration:InputDecoration(
-          prefixIcon:const Icon(Icons.search_rounded,color:muted,size:21),
-          hintText:hint,
-          hintStyle:const TextStyle(color:muted,fontSize:14),
-          filled:false,
-          border:InputBorder.none,
-          enabledBorder:InputBorder.none,
-          focusedBorder:InputBorder.none,
-          contentPadding:const EdgeInsets.symmetric(vertical:14),
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
 
 class _Y2KGrid extends CustomPainter{
