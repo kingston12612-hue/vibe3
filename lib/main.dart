@@ -974,6 +974,7 @@ class _BareFieldState extends State<_BareField>{
         ],
       ),
     );
+  }
 }
 class _GlassSearchField extends StatelessWidget{
   final String hint;
