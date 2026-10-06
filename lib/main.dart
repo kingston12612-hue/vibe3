@@ -766,7 +766,9 @@ class _ChatsState extends State<Chats>{
             Expanded(
               child:RefreshIndicator(
                 color:purple,
-                backgroundColor:surface,
+                backgroundColor:Theme.of(context).scaffoldBackgroundColor,
+                displacement:18,
+                edgeOffset:0,
                 onRefresh:load,
                 child:loading
                   ?ListView(children:[const SizedBox(height:170),const Center(child:CircularProgressIndicator(color:purple))])
