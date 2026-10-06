@@ -1266,13 +1266,76 @@ class _ChatState extends State<ChatPage>{
       ]),
     );
   }
-  void showContact(BuildContext context){
+  Future<void> showContact(BuildContext context)async{
     final s=S(context);
-    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(20,8,20,24),child:Column(mainAxisSize:MainAxisSize.min,children:[
-      Avatar(name:widget.chat.name,size:84),const SizedBox(height:12),Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),const SizedBox(height:15),
-      ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
-      ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
-    ]))));
+    String username='';
+    try{
+      final d=await Api.get('/chats/'+widget.chat.id+'/peer');
+      username=(d['username']??'').toString();
+    }catch(_){}
+    if(!context.mounted)return;
+    showModalBottomSheet(
+      context:context,
+      showDragHandle:true,
+      builder:(_)=>SafeArea(
+        child:Padding(
+          padding:const EdgeInsets.fromLTRB(20,8,20,24),
+          child:Column(
+            mainAxisSize:MainAxisSize.min,
+            children:[
+              Avatar(name:widget.chat.name,size:84),
+              const SizedBox(height:12),
+              Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
+              if(username.isNotEmpty) ...[
+                const SizedBox(height:4),
+                Text('@'+username,style:const TextStyle(color:muted,fontSize:14)),
+              ],
+              const SizedBox(height:15),
+              ListTile(
+                leading:const Icon(Icons.person_outline_rounded),
+                title:Text(s.profile),
+                subtitle:Text(s.editProfile,style:const TextStyle(color:muted)),
+                onTap:(){
+                  Navigator.pop(context);
+                  showModalBottomSheet(
+                    context:context,
+                    showDragHandle:true,
+                    builder:(_)=>SafeArea(
+                      child:Padding(
+                        padding:const EdgeInsets.fromLTRB(20,8,20,28),
+                        child:Column(
+                          mainAxisSize:MainAxisSize.min,
+                          children:[
+                            Avatar(name:widget.chat.name,size:96),
+                            const SizedBox(height:14),
+                            Text(widget.chat.name,style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),
+                            if(username.isNotEmpty) ...[
+                              const SizedBox(height:5),
+                              Text('@'+username,style:const TextStyle(color:muted,fontSize:15)),
+                            ],
+                            const SizedBox(height:18),
+                            Row(
+                              mainAxisAlignment:MainAxisAlignment.center,
+                              children:[
+                                OutlinedButton.icon(onPressed:()=>openCall(context,false),icon:const Icon(Icons.call_outlined),label:Text(s.voiceCall)),
+                                const SizedBox(width:10),
+                                OutlinedButton.icon(onPressed:()=>openCall(context,true),icon:const Icon(Icons.videocam_outlined),label:Text(s.videoCall)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
+              ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
+            ],
+          ),
+        ),
+      ),
+    );
   }
   void showChatMenu(BuildContext context){
     final s=S(context);
@@ -1440,26 +1503,22 @@ class Settings extends StatelessWidget{
         ),
       ),
       const SizedBox(height:6),
-      _SettingsItem(
-        child:SwitchListTile(
-          contentPadding:const EdgeInsets.symmetric(horizontal:4),
-          value:!light,
-          onChanged:(v)=>onTheme(!v),
-          secondary:const Icon(Icons.nights_stay_outlined),
-          title:Text(s.darkY2K,style:const TextStyle(fontWeight:FontWeight.w800)),
-          subtitle:Text(s.darkY2KSub,style:const TextStyle(color:muted)),
-        ),
+      SwitchListTile(
+        contentPadding:const EdgeInsets.symmetric(horizontal:4),
+        value:!light,
+        onChanged:(v)=>onTheme(!v),
+        secondary:const Icon(Icons.nights_stay_outlined),
+        title:Text(s.darkY2K,style:const TextStyle(fontWeight:FontWeight.w800)),
+        subtitle:Text(s.darkY2KSub,style:const TextStyle(color:muted)),
       ),
       const SizedBox(height:6),
-      _SettingsItem(
-        child:SwitchListTile(
-          contentPadding:const EdgeInsets.symmetric(horizontal:4),
-          value:notifications,
-          onChanged:onNotifications,
-          secondary:const Icon(Icons.notifications_none_rounded),
-          title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),
-          subtitle:Text(notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
-        ),
+      SwitchListTile(
+        contentPadding:const EdgeInsets.symmetric(horizontal:4),
+        value:notifications,
+        onChanged:onNotifications,
+        secondary:const Icon(Icons.notifications_none_rounded),
+        title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),
+        subtitle:Text(notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
       ),
       section(context,s.language,[ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context))]),
       section(context,s.security,[
