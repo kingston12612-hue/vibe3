@@ -817,8 +817,8 @@ class _ChatsState extends State<Chats>{
                   ),
                   const Spacer(),
                   _CircleAction(icon:Icons.search_rounded,onTap:()async{
-                    final x=await showSearch<Chat?>(context:context,delegate:ChatSearch(list));
-                    if(x!=null)widget.onOpen(x);
+                    final x=await Navigator.push<Chat?>(context,MaterialPageRoute(builder:(_)=>ChatSearchPage(list:list)));
+                    if(x!=null&&mounted)widget.onOpen(x);
                   }),
                   const SizedBox(width:8),
                   _CircleAction(icon:Icons.add_comment_rounded,filled:true,onTap:widget.onNewChat),
@@ -860,42 +860,57 @@ class _ChatsState extends State<Chats>{
   }
 }
 
-class ChatSearch extends SearchDelegate<Chat?>{
-  final List<Chat> list;ChatSearch(this.list);
-  @override ThemeData appBarTheme(BuildContext context){
-    final theme=Theme.of(context);
-    return theme.copyWith(
-      appBarTheme:theme.appBarTheme.copyWith(
+class ChatSearchPage extends StatefulWidget{
+  final List<Chat> list;
+  const ChatSearchPage({super.key,required this.list});
+  @override State<ChatSearchPage> createState()=>_ChatSearchPageState();
+}
+class _ChatSearchPageState extends State<ChatSearchPage>{
+  final controller=TextEditingController();
+  @override void dispose(){controller.dispose();super.dispose();}
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    final q=controller.text.trim().toLowerCase();
+    final filtered=widget.list.where((x)=>
+      x.name.toLowerCase().contains(q)||
+      x.preview.toLowerCase().contains(q)
+    ).toList();
+    return Scaffold(
+      backgroundColor:bg,
+      appBar:AppBar(
         backgroundColor:bg,
-        foregroundColor:theme.colorScheme.onSurface,
-        elevation:0,
-        scrolledUnderElevation:0,
-        surfaceTintColor:Colors.transparent,
+        titleSpacing:0,
+        leading:IconButton(
+          onPressed:()=>Navigator.pop(context),
+          icon:const Icon(Icons.arrow_back_rounded),
+        ),
+        title:Padding(
+          padding:const EdgeInsets.only(right:12),
+          child:_BareField(
+            controller:controller,
+            hint:s.searchChats,
+            icon:Icons.search_rounded,
+            onChanged:(_)=>setState((){}),
+          ),
+        ),
       ),
-      inputDecorationTheme:const InputDecorationTheme(
-        filled:false,
-        fillColor:Colors.transparent,
-        hoverColor:Colors.transparent,
-        focusColor:Colors.transparent,
-        border:InputBorder.none,
-        enabledBorder:InputBorder.none,
-        focusedBorder:InputBorder.none,
-        disabledBorder:InputBorder.none,
-        errorBorder:InputBorder.none,
-        focusedErrorBorder:InputBorder.none,
-      ),
+      body:filtered.isEmpty
+        ?ListView(
+            physics:const AlwaysScrollableScrollPhysics(),
+            children:[const SizedBox(height:125),EmptyState(icon:Icons.search_off_rounded,title:s.noChats,sub:s.noChatsSub)],
+          )
+        :ListView.separated(
+            padding:const EdgeInsets.fromLTRB(14,8,14,24),
+            itemCount:filtered.length,
+            separatorBuilder:(_,__)=>const SizedBox(height:9),
+            itemBuilder:(_,i)=>Tile(
+              chat:filtered[i],
+              tap:()=>Navigator.pop(context,filtered[i]),
+            ),
+          ),
     );
   }
-  @override List<Widget>? buildActions(BuildContext c)=>[IconButton(onPressed:()=>query='',icon:const Icon(Icons.clear_rounded))];
-  @override Widget buildLeading(BuildContext c)=>IconButton(onPressed:()=>close(c,null),icon:const Icon(Icons.arrow_back_rounded));
-  @override Widget buildResults(BuildContext c)=>result(c);
-  @override Widget buildSuggestions(BuildContext c)=>result(c);
-  Widget result(BuildContext c){
-    final q=query.toLowerCase();
-    return ListView(padding:const EdgeInsets.all(12),children:list.where((x)=>x.name.toLowerCase().contains(q)).map((x)=>Tile(chat:x,tap:()=>close(c,x))).toList());
-  }
 }
-
 class _BareField extends StatefulWidget{
   final TextEditingController? controller;
   final String hint;
@@ -965,7 +980,6 @@ class _BareFieldState extends State<_BareField>{
                   cursorColor:purple,
                   backgroundCursorColor:muted,
                   selectionColor:purple.withOpacity(.25),
-                  textAlignVertical:multi?TextAlignVertical.top:TextAlignVertical.center,
                   onChanged:widget.onChanged,
                 ),
               ],
@@ -1124,7 +1138,7 @@ class _ChatState extends State<ChatPage>{
         ),
         SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(10,6,10,10),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
           _CircleAction(icon:Icons.add_rounded,onTap:()=>showAttachments(context)),const SizedBox(width:8),
-          Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:0,vertical:1),child:_BareField(controller:input,hint:s.messageHint,maxLines:5)),
+          Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:0,vertical:1),child:_BareField(controller:input,hint:s.messageHint,maxLines:5))),
           const SizedBox(width:8),_CircleAction(icon:Icons.arrow_upward_rounded,filled:true,busy:sending,onTap:send),
         ]))),
       ]),
