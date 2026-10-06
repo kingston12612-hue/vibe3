@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -98,7 +101,13 @@ class AppStrings {
   String get usernameRules=>ru?'3–30 символов: a-z, 0-9, _':'3–30 chars: a-z, 0-9, _';
   String get passwordsMismatch=>ru?'Пароли не совпадают':'Passwords do not match';
   String get profileCheck=>ru?'Проверь имя и username':'Check name and username';
-  String get mediaNext=>ru?'Медиа-отправка будет подключена следующим этапом.':'Media sending will be connected next.';
+  String get photoVideo=>ru?'Фото / видео':'Photo / video';
+  String get voiceMessage=>ru?'Голосовое сообщение':'Voice message';
+  String get recording=>ru?'Идёт запись...':'Recording...';
+  String get stopAndSend=>ru?'Остановить и отправить':'Stop and send';
+  String get cancelRecording=>ru?'Отменить запись':'Cancel recording';
+  String get mediaTooLarge=>ru?'Файл слишком большой (максимум 7 МБ).':'File is too large (7 MB maximum).';
+  String get mediaFailed=>ru?'Не удалось отправить медиа':'Could not send media';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -630,7 +639,7 @@ String friendlyError(Object ex,AppStrings s){
 
 class Chat{final String id;String name,preview,time;bool online;int unread;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0});}
 class UserX{final String id,name,username;UserX(this.id,this.name,this.username);}
-class Msg{final String id,text,sender;final bool mine;Msg(this.id,this.text,this.sender,this.mine);}
+class Msg{final String id,text,sender,type,mediaUrl;final bool mine;Msg(this.id,this.text,this.sender,this.mine,{this.type='text',this.mediaUrl=''} }
 
 class Shell extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
@@ -1075,13 +1084,14 @@ class ChatPage extends StatefulWidget{
 }
 class _ChatState extends State<ChatPage>{
   final input=TextEditingController();final scroll=ScrollController();List<Msg> msgs=[];
+  final recorder=AudioRecorder();
   bool loading=true,sending=false;IO.Socket? socket;String myId='';
   @override void initState(){super.initState();load();}
-  @override void dispose(){socket?.disconnect();socket?.dispose();input.dispose();scroll.dispose();super.dispose();}
+  @override void dispose(){socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();super.dispose();}
   Future<void> load()async{
     try{
       final me=await Api.get('/me');myId=(me['id']??'').toString();
-      final a=await Api.get('/chats/'+widget.chat.id+'/messages');      msgs=(a as List).map((x)=>Msg((x['id']??'').toString(),(x['body']??'').toString(),(x['sender_name']??'').toString(),(x['sender_id']??'').toString()==myId)).toList();
+      final a=await Api.get('/chats/'+widget.chat.id+'/messages');      msgs=(a as List).map((x)=>Msg((x['id']??'').toString(),(x['body']??'').toString(),(x['sender_name']??'').toString(),(x['sender_id']??'').toString()==myId,type:(x['message_type']??'text').toString(),mediaUrl:(x['media_url']??'').toString())).toList();
       await connectRealtime();
     }catch(_){}
     if(mounted){setState(()=>loading=false);WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());}
@@ -1093,24 +1103,83 @@ class _ChatState extends State<ChatPage>{
     socket!.on('message',(data){
       if(!mounted||data is! Map)return;
       final id=(data['id']??'').toString();if(id.isEmpty||msgs.any((m)=>m.id==id))return;
-      setState(()=>msgs.add(Msg(id,(data['body']??'').toString(),(data['sender_name']??'').toString(),(data['sender_id']??'').toString()==myId)));
+      setState(()=>msgs.add(Msg(id,(data['body']??'').toString(),(data['sender_name']??'').toString(),(data['sender_id']??'').toString()==myId,type:(data['message_type']??'text').toString(),mediaUrl:(data['media_url']??'').toString())));
       WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());
     });
     socket!.connect();
   }
   Future<void> send()async{
     final body=input.text.trim();if(body.isEmpty||sending)return;
+    await sendMediaMessage(body:body,type:'text');
+    if(mounted)input.clear();
+  }
+  Future<void> sendMediaMessage({required String body,required String type,String mediaUrl=''})async{
+    if(sending)return;
     setState(()=>sending=true);
     try{
-      if(socket?.connected==true)socket!.emit('message',{'chatId':widget.chat.id,'body':body,'type':'text'});
-      else{
-        final x=await Api.post('/chats/'+widget.chat.id+'/messages',{'body':body,'type':'text'});
+      final payload={'chatId':widget.chat.id,'body':body,'type':type,'mediaUrl':mediaUrl};
+      if(socket?.connected==true){
+        socket!.emit('message',payload);
+      }else{
+        final x=await Api.post('/chats/'+widget.chat.id+'/messages',{'body':body,'type':type,'mediaUrl':mediaUrl});
         final id=(x['id']??DateTime.now().microsecondsSinceEpoch).toString();
-        if(mounted&&!msgs.any((m)=>m.id==id))setState(()=>msgs.add(Msg(id,body,'',true)));
+        if(mounted&&!msgs.any((m)=>m.id==id))setState(()=>msgs.add(Msg(id,body,'',true,type:type,mediaUrl:mediaUrl)));
       }
-      input.clear();WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());
-    }catch(_){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).messageNotSent)));}
-    finally{if(mounted)setState(()=>sending=false);}
+      WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());
+    }catch(_){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(type=='text'?S(context).messageNotSent:S(context).mediaFailed)));
+    }finally{if(mounted)setState(()=>sending=false);}
+  }
+  Future<void> pickMedia()async{
+    try{
+      final file=await ImagePicker().pickMedia();
+      if(file==null)return;
+      final bytes=await file.readAsBytes();
+      if(bytes.length>7*1024*1024){
+        if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).mediaTooLarge)));
+        return;
+      }
+      final lower=file.name.toLowerCase();
+      final type=(lower.endsWith('.mp4')||lower.endsWith('.mov')||lower.endsWith('.mkv')||lower.endsWith('.webm'))?'video':'image';
+      final mime=type=='video'?'video/mp4':'image/jpeg';
+      await sendMediaMessage(body:type=='video'?'🎥 '+file.name:'📷 '+file.name,type:type,mediaUrl:'data:'+mime+';base64,'+base64Encode(bytes));
+    }catch(_){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).mediaFailed)));
+    }
+  }
+  Future<void> recordVoice()async{
+    try{
+      if(!await recorder.hasPermission()){
+        if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).mediaFailed)));
+        return;
+      }
+      final dir=await getTemporaryDirectory();
+      final path=dir.path+'/vibe_'+DateTime.now().millisecondsSinceEpoch.toString()+'.m4a';
+      await recorder.start(const RecordConfig(),path:path);
+      if(!mounted)return;
+      final action=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+        title:Text(S(context).recording),
+        content:const Icon(Icons.mic_rounded,size:56,color:purple),
+        actions:[
+          TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(S(context).cancelRecording)),
+          FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(S(context).stopAndSend)),
+        ],
+      ));
+      if(action==true){
+        final recorded=await recorder.stop();
+        if(recorded!=null){
+          final bytes=await XFile(recorded).readAsBytes();
+          if(bytes.length<=7*1024*1024){
+            await sendMediaMessage(body:'🎤 '+S(context).voiceMessage,type:'audio',mediaUrl:'data:audio/mp4;base64,'+base64Encode(bytes));
+          }else if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).mediaTooLarge)));
+        }
+      }else{
+        await recorder.cancel();
+      }
+    }catch(_){
+      try{await recorder.cancel();}catch(_){ }
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).mediaFailed)));
+    }
   }
   void scrollEnd(){if(!scroll.hasClients)return;scroll.animateTo(scroll.position.maxScrollExtent,duration:const Duration(milliseconds:220),curve:Curves.easeOut);}
   @override Widget build(BuildContext context){
@@ -1216,8 +1285,8 @@ class _ChatState extends State<ChatPage>{
   void showAttachments(BuildContext context){
     final s=S(context);
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
-      ListTile(leading:const Icon(Icons.photo_library_outlined),title:Text(s.ru?'Фото / видео':'Photo / video'),onTap:(){Navigator.pop(context);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.mediaNext)));}),
-      ListTile(leading:const Icon(Icons.mic_none_rounded),title:Text(s.ru?'Голосовое сообщение':'Voice message'),onTap:(){Navigator.pop(context);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.mediaNext)));}),
+      ListTile(leading:const Icon(Icons.photo_library_outlined),title:Text(s.photoVideo),onTap:(){Navigator.pop(context);pickMedia();}),
+      ListTile(leading:const Icon(Icons.mic_none_rounded),title:Text(s.voiceMessage),onTap:(){Navigator.pop(context);recordVoice();}),
       const SizedBox(height:10),
     ])));
   }
@@ -1250,7 +1319,14 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
           child:Container(
             constraints:const BoxConstraints(maxWidth:325),margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),
             decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:(dark?surface2:Colors.white),borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:dark?stroke:Colors.black12)),
-            child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15,height:1.3)),
+            child:msg.type=='image'&&msg.mediaUrl.isNotEmpty
+              ?ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover))
+              :Row(mainAxisSize:MainAxisSize.min,children:[
+                  if(msg.type=='video')const Icon(Icons.videocam_rounded,size:22,color:Colors.white),
+                  if(msg.type=='audio')const Icon(Icons.mic_rounded,size:22,color:Colors.white),
+                  if(msg.type!='text')const SizedBox(width:8),
+                  Flexible(child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15,height:1.3))),
+                ]),
           ),
         ),
       ),
