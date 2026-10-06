@@ -80,6 +80,15 @@ app.post('/chats/direct',auth,async(req,res)=>{try{
 
 app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview FROM chats c JOIN chat_members cm ON cm.chat_id=c.id WHERE cm.user_id=$1 AND (c.is_group=true OR (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)>1) ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/members',auth,async(req,res)=>{await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.params.id,req.body.userId]);res.json({ok:true});});
+app.get('/chats/:id/peer',auth,async(req,res)=>{
+ try{
+  const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+  if(!member.rowCount)return res.status(403).json({error:'not_member'});
+  const r=await pool.query('SELECT u.id,u.username,u.display_name,u.avatar_url FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 AND cm.user_id<>$2 LIMIT 1',[req.params.id,req.user.id]);
+  if(!r.rowCount)return res.status(404).json({error:'peer_not_found'});
+  res.json(r.rows[0]);
+ }catch(e){console.error('peer_lookup_failed',e);res.status(500).json({error:'peer_lookup_failed'});}
+});
 app.get('/chats/:id/messages',auth,async(req,res)=>{const r=await pool.query('SELECT m.*,u.display_name sender_name FROM messages m JOIN users u ON u.id=m.sender_id JOIN chat_members cm ON cm.chat_id=m.chat_id WHERE m.chat_id=$1 AND cm.user_id=$2 ORDER BY m.created_at ASC LIMIT 200',[req.params.id,req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/messages',auth,async(req,res)=>{try{
  const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);if(!member.rowCount)return res.status(403).json({error:'not_member'});
