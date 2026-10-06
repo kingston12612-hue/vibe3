@@ -69,8 +69,12 @@ app.post('/chats/direct',auth,async(req,res)=>{try{
  const other=String(req.body?.userId||'');if(!other)return res.status(400).json({error:'user_required'});
  if(other===req.user.id)return res.status(400).json({error:'cannot_chat_self'});
  const existing=await pool.query(`SELECT c.id,c.title,COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview
- FROM chats c JOIN chat_members a ON a.chat_id=c.id AND a.user_id=$1 JOIN chat_members b ON b.chat_id=c.id AND b.user_id=$2
- WHERE c.is_group=false LIMIT 1`,[req.user.id,other]);
+ FROM chats c
+ JOIN chat_members a ON a.chat_id=c.id AND a.user_id=$1
+ JOIN chat_members b ON b.chat_id=c.id AND b.user_id=$2
+ WHERE c.is_group=false
+   AND (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)=2
+ ORDER BY c.created_at DESC LIMIT 1`,[req.user.id,other]);
  if(existing.rowCount)return res.json(existing.rows[0]);
  const u=await pool.query('SELECT display_name FROM users WHERE id=$1',[other]);if(!u.rowCount)return res.status(404).json({error:'user_not_found'});
  const c=await pool.query('INSERT INTO chats(title,is_group,created_by) VALUES($1,false,$2) RETURNING id,title',[u.rows[0].display_name,req.user.id]);
@@ -78,8 +82,24 @@ app.post('/chats/direct',auth,async(req,res)=>{try{
  res.json({...c.rows[0],preview:''});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview FROM chats c JOIN chat_members cm ON cm.chat_id=c.id WHERE cm.user_id=$1 AND (c.is_group=true OR (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)>1) ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
-app.post('/chats/:id/members',auth,async(req,res)=>{await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.params.id,req.body.userId]);res.json({ok:true});});
+app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,
+ CASE WHEN c.is_group THEN c.title
+      ELSE COALESCE((SELECT u.display_name FROM chat_members cm2 JOIN users u ON u.id=cm2.user_id WHERE cm2.chat_id=c.id AND cm2.user_id<>$1 LIMIT 1),c.title)
+ END AS title,
+ COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview
+ FROM chats c
+ JOIN chat_members cm ON cm.chat_id=c.id
+ WHERE cm.user_id=$1 AND (c.is_group=true OR (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)=2)
+ ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
+app.post('/chats/:id/members',auth,async(req,res)=>{
+ try{
+  const owner=await pool.query('SELECT 1 FROM chat_members cm JOIN chats c ON c.id=cm.chat_id WHERE cm.chat_id=$1 AND cm.user_id=$2 AND c.is_group=true',[req.params.id,req.user.id]);
+  if(!owner.rowCount)return res.status(403).json({error:'group_only'});
+  const userId=String(req.body?.userId||'');if(!userId)return res.status(400).json({error:'user_required'});
+  await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.params.id,userId]);
+  res.json({ok:true});
+ }catch(e){console.error('add_member_failed',e);res.status(500).json({error:'member_add_failed'});}
+});
 app.get('/chats/:id/peer',auth,async(req,res)=>{
  try{
   const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
