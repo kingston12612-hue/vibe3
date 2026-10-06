@@ -1116,13 +1116,66 @@ class _ChatState extends State<ChatPage>{
   @override Widget build(BuildContext context){
     final s=S(context);
     return Scaffold(
-      appBar:AppBar(titleSpacing:0,title:InkWell(borderRadius:BorderRadius.circular(16),onTap:()=>showContact(context),child:Padding(padding:const EdgeInsets.symmetric(horizontal:5,vertical:5),child:Row(children:[
-        Avatar(name:widget.chat.name,size:40),const SizedBox(width:9),
-        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(widget.chat.name,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11))]),      ]))),actions:[
-        IconButton(tooltip:s.voiceCall,onPressed:()=>openCall(context,false),icon:const Icon(Icons.call_outlined)),
-        IconButton(tooltip:s.profile,onPressed:()=>showChatMenu(context),icon:const Icon(Icons.more_horiz_rounded)),
-      ]),
       body:Column(children:[
+        SafeArea(
+          bottom:false,
+          child:Container(
+            height:72,
+            color:bg,
+            padding:const EdgeInsets.symmetric(horizontal:6),
+            child:Row(
+              children:[
+                SizedBox(
+                  width:48,
+                  height:56,
+                  child:IconButton(
+                    tooltip:MaterialLocalizations.of(context).backButtonTooltip,
+                    onPressed:()=>Navigator.maybePop(context),
+                    icon:const Icon(Icons.arrow_back_rounded),
+                  ),
+                ),
+                Expanded(
+                  child:Material(
+                    type:MaterialType.transparency,
+                    child:InkWell(
+                      borderRadius:BorderRadius.circular(16),
+                      onTap:()=>showContact(context),
+                      child:Padding(
+                        padding:const EdgeInsets.symmetric(horizontal:5,vertical:5),
+                        child:Row(
+                          children:[
+                            Avatar(name:widget.chat.name,size:40),
+                            const SizedBox(width:9),
+                            Expanded(
+                              child:Column(
+                                mainAxisAlignment:MainAxisAlignment.center,
+                                crossAxisAlignment:CrossAxisAlignment.start,
+                                children:[
+                                  Text(widget.chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),
+                                  Text(widget.chat.online?s.online:s.active,style:const TextStyle(color:muted,fontSize:11)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip:s.voiceCall,
+                  onPressed:()=>openCall(context,false),
+                  icon:const Icon(Icons.call_outlined),
+                ),
+                IconButton(
+                  tooltip:s.profile,
+                  onPressed:()=>showChatMenu(context),
+                  icon:const Icon(Icons.more_horiz_rounded),
+                ),
+              ],
+            ),
+          ),
+        ),
         Expanded(
           child:Stack(
             children:[
