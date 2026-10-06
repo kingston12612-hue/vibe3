@@ -48,8 +48,8 @@ class AppStrings {
   String get save=>ru?'Сохранить':'Save';
   String get cancel=>ru?'Отмена':'Cancel';
   String get ok=>ru?'Готово':'Done';
-  String get darkY2K=>'Dark Y2K';
-  String get darkY2KSub=>ru?'Тёмный интерфейс с мягким неоном':'Dark interface with soft neon';
+  String get darkY2K=>ru?'Тёмная тема':'Dark theme';
+  String get darkY2KSub=>ru?'Тёмный интерфейс vibe<3':'Vibe<3 dark interface';
   String get language=>ru?'Язык':'Language';
   String get russian=>'Русский';
   String get english=>'English';
@@ -113,103 +113,28 @@ class AppStrings {
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
 
 ThemeData vibeTheme(bool dark){
-  final pageBg=dark?bg:const Color(0xFFF6F4FB);
-  final cs=ColorScheme.fromSeed(
-    seedColor:purple,
-    brightness:dark?Brightness.dark:Brightness.light,
-  ).copyWith(
-    surface:pageBg,
-    surfaceDim:dark?const Color(0xFF07070C):const Color(0xFFE9E7EE),
-    surfaceBright:dark?surface2:Colors.white,
-    surfaceContainerLowest:pageBg,
-    surfaceContainerLow:dark?const Color(0xFF0F0F15):const Color(0xFFF1EFF6),
-    surfaceContainer:dark?surface:pageBg,
-    surfaceContainerHigh:dark?surface2:const Color(0xFFECEAF2),
-    surfaceContainerHighest:dark?const Color(0xFF22222D):const Color(0xFFE4E2E9),
-    surfaceVariant:dark?surface2:const Color(0xFFE6E3EA),
-    onSurface:dark?const Color(0xFFF4F4FF):const Color(0xFF1B1B22),
-    onSurfaceVariant:dark?muted:const Color(0xFF666675),
-  );
+  const lightBg=Color(0xFFF3F1FA),lightSurface=Color(0xFFFFFFFF),lightSurface2=Color(0xFFEDEAF6);
+  const lightStroke=Color(0xFFD9D4E8),lightText=Color(0xFF171522),lightMuted=Color(0xFF686477);
+  final pageBg=dark?bg:lightBg;
+  final cs=dark
+    ? const ColorScheme.dark(primary:purple,onPrimary:Colors.white,secondary:blue,onSecondary:Colors.white,tertiary:pink,onTertiary:Colors.white,surface:surface,onSurface:Color(0xFFF4F4FF),surfaceContainerHighest:surface2,onSurfaceVariant:muted,outline:stroke)
+    : const ColorScheme.light(primary:purple,onPrimary:Colors.white,secondary:blue,onSecondary:Colors.white,tertiary:pink,onTertiary:Colors.white,surface:lightSurface,onSurface:lightText,surfaceContainerHighest:lightSurface2,onSurfaceVariant:lightMuted,outline:lightStroke);
+  final panel=dark?surface:lightSurface,panel2=dark?surface2:lightSurface2,line=dark?stroke:lightStroke;
   return ThemeData(
-    useMaterial3:true,
-    brightness:dark?Brightness.dark:Brightness.light,
-    colorScheme:cs,
-    scaffoldBackgroundColor:pageBg,
-    canvasColor:pageBg,
-    cardTheme:CardTheme(
-      color:dark?surface:Colors.white,
-      elevation:0,
-      margin:EdgeInsets.zero,
-      surfaceTintColor:Colors.transparent,
-      shadowColor:Colors.transparent,
-      shape:RoundedRectangleBorder(
-        borderRadius:BorderRadius.circular(22),
-        side:BorderSide(color:dark?stroke:Colors.black12),
-      ),
-    ),
-    appBarTheme:AppBarTheme(
-      backgroundColor:pageBg,
-      foregroundColor:cs.onSurface,
-      elevation:0,
-      scrolledUnderElevation:0,
-      surfaceTintColor:Colors.transparent,
-    ),
-    bottomSheetTheme:BottomSheetThemeData(
-      backgroundColor:dark?surface:Colors.white,
-      surfaceTintColor:Colors.transparent,
-      modalBackgroundColor:dark?surface:Colors.white,
-      elevation:0,
-      showDragHandle:true,
-    ),
-    dialogTheme:DialogTheme(
-      backgroundColor:dark?surface:Colors.white,
-      surfaceTintColor:Colors.transparent,
-      elevation:0,
-      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(24)),
-    ),
-    popupMenuTheme:PopupMenuThemeData(
-      color:dark?surface:Colors.white,
-      surfaceTintColor:Colors.transparent,
-      elevation:0,
-      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-    ),
-    navigationBarTheme:NavigationBarThemeData(
-      backgroundColor:dark?const Color(0xFF0D0D13):Colors.white,
-      indicatorColor:purple.withOpacity(.18),
-      height:72,
-      labelTextStyle:WidgetStatePropertyAll(
-        const TextStyle(fontSize:11,fontWeight:FontWeight.w800),
-      ),
-    ),
-    listTileTheme:ListTileThemeData(
-      tileColor:Colors.transparent,
-      selectedTileColor:purple.withOpacity(.10),
-    ),
-    inputDecorationTheme:InputDecorationTheme(
-      filled:false,
-      fillColor:Colors.transparent,
-      hoverColor:Colors.transparent,
-      hintStyle:TextStyle(color:dark?muted:const Color(0xFF7E7E8E)),
-      border:InputBorder.none,
-      enabledBorder:InputBorder.none,
-      focusedBorder:InputBorder.none,
-      disabledBorder:InputBorder.none,
-      errorBorder:InputBorder.none,
-      focusedErrorBorder:InputBorder.none,
-      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:14),
-    ),
-    filledButtonTheme:FilledButtonThemeData(
-      style:FilledButton.styleFrom(
-        backgroundColor:purple,
-        foregroundColor:Colors.white,
-        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
-        minimumSize:const Size.fromHeight(52),
-      ),
-    ),
-    snackBarTheme:SnackBarThemeData(
-      behavior:SnackBarBehavior.floating,
-      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
-    ),
+    useMaterial3:true,brightness:dark?Brightness.dark:Brightness.light,colorScheme:cs,
+    scaffoldBackgroundColor:pageBg,canvasColor:pageBg,
+    cardTheme:CardTheme(color:panel,elevation:0,margin:EdgeInsets.zero,surfaceTintColor:Colors.transparent,shadowColor:Colors.transparent,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:BorderSide(color:line))),
+    appBarTheme:AppBarTheme(backgroundColor:pageBg,foregroundColor:cs.onSurface,elevation:0,scrolledUnderElevation:0,surfaceTintColor:Colors.transparent),
+    bottomSheetTheme:BottomSheetThemeData(backgroundColor:panel,surfaceTintColor:Colors.transparent,modalBackgroundColor:panel,elevation:0,showDragHandle:true),
+    dialogTheme:DialogTheme(backgroundColor:panel,surfaceTintColor:Colors.transparent,elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(24))),
+    popupMenuTheme:PopupMenuThemeData(color:panel,surfaceTintColor:Colors.transparent,elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20))),
+    navigationBarTheme:NavigationBarThemeData(backgroundColor:dark?const Color(0xFF0D0D13):lightSurface,indicatorColor:purple.withOpacity(.16),height:72,labelTextStyle:const WidgetStatePropertyAll(TextStyle(fontSize:11,fontWeight:FontWeight.w800))),
+    switchTheme:SwitchThemeData(thumbColor:WidgetStateProperty.resolveWith((s)=>s.contains(WidgetState.selected)?Colors.white:cs.onSurfaceVariant),trackColor:WidgetStateProperty.resolveWith((s)=>s.contains(WidgetState.selected)?purple.withOpacity(.55):line),trackOutlineColor:const WidgetStatePropertyAll(Colors.transparent)),
+    listTileTheme:ListTileThemeData(tileColor:Colors.transparent,selectedTileColor:purple.withOpacity(.10)),
+    inputDecorationTheme:InputDecorationTheme(filled:false,fillColor:Colors.transparent,hoverColor:Colors.transparent,hintStyle:TextStyle(color:dark?muted:lightMuted),border:InputBorder.none,enabledBorder:InputBorder.none,focusedBorder:InputBorder.none,disabledBorder:InputBorder.none,errorBorder:InputBorder.none,focusedErrorBorder:InputBorder.none,contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:14)),
+    filledButtonTheme:FilledButtonThemeData(style:FilledButton.styleFrom(backgroundColor:purple,foregroundColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),minimumSize:const Size.fromHeight(52))),
+    outlinedButtonTheme:OutlinedButtonThemeData(style:OutlinedButton.styleFrom(foregroundColor:cs.onSurface,side:BorderSide(color:line),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),minimumSize:const Size.fromHeight(52))),
+    snackBarTheme:SnackBarThemeData(behavior:SnackBarBehavior.floating,backgroundColor:panel2,contentTextStyle:TextStyle(color:cs.onSurface),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16))),
   );
 }
 
