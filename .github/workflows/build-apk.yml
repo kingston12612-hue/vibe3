@@ -54,8 +54,13 @@ jobs:
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
           marker = '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
+          additions = []
           if "android.permission.INTERNET" not in s:
-              s = s.replace(marker, marker + '\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
+              additions.append('    <uses-permission android:name="android.permission.INTERNET" />')
+          if "android.permission.RECORD_AUDIO" not in s:
+              additions.append('    <uses-permission android:name="android.permission.RECORD_AUDIO" />')
+          if additions:
+              s = s.replace(marker, marker + "\n" + "\n".join(additions), 1)
           p.write_text(s)
           PY
 
