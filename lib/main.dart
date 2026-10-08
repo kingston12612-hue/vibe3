@@ -1693,28 +1693,3 @@ class _CircleAction extends StatelessWidget{
     return Material(color:filled?purple:(dark?surface2:const Color(0xFFECEAF2)),borderRadius:BorderRadius.circular(18),clipBehavior:Clip.antiAlias,child:InkWell(borderRadius:BorderRadius.circular(18),onTap:busy?null:onTap,splashColor:purple.withOpacity(.16),highlightColor:purple.withOpacity(.08),child:SizedBox(width:50,height:50,child:Center(child:busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):Icon(icon,color:filled?Colors.white:null)))));
   }
 }
-class _CircleActionState extends State<_CircleAction>{
-  bool pressed=false;
-  @override Widget build(BuildContext context){
-    final dark=Theme.of(context).brightness==Brightness.dark;
-    return GestureDetector(
-      onTapDown:(_)=>setState(()=>pressed=true),
-      onTapCancel:()=>setState(()=>pressed=false),
-      onTapUp:(_)=>setState(()=>pressed=false),
-      child:AnimatedScale(
-        scale:pressed ? .90 : 1,
-        duration:const Duration(milliseconds:90),
-        curve:Curves.easeOut,
-        child:Material(
-          color:widget.filled?purple:(dark?surface2:const Color(0xFFECEAF2)),
-          borderRadius:BorderRadius.circular(18),
-          child:InkWell(
-            borderRadius:BorderRadius.circular(18),
-            onTap:widget.busy?null:widget.onTap,
-            child:SizedBox(width:50,height:50,child:Center(child:widget.busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):Icon(widget.icon,color:widget.filled?Colors.white:null))),
-          ),
-        ),
-      ),
-    );
-  }
-}
