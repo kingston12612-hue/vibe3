@@ -731,7 +731,7 @@ class _ChatsState extends State<Chats>{
   @override Widget build(BuildContext context){
     final s=S(context);
     final filtered=list.where((x)=>x.name.toLowerCase().contains(q.toLowerCase())||x.preview.toLowerCase().contains(q.toLowerCase())).toList();
-    return Stack(
+    return Container(color:bg,child:Stack(
       children:[
         Positioned(top:-170,right:-120,child:_Glow(size:330,color:purple.withOpacity(.12))),
         Positioned(top:100,left:-180,child:_Glow(size:270,color:blue.withOpacity(.045))),
@@ -764,14 +764,7 @@ class _ChatsState extends State<Chats>{
               padding:const EdgeInsets.fromLTRB(22,8,22,12),
               child:_GlassSearchField(hint:s.searchChats,onChanged:(v)=>setState(()=>q=v)),
             ),
-            Expanded(
-              child:RefreshIndicator(
-                color:purple,
-                backgroundColor:Theme.of(context).scaffoldBackgroundColor,
-                displacement:18,
-                edgeOffset:0,
-                onRefresh:load,
-                child:loading
+            Expanded(child:loading
                   ?ListView(children:[const SizedBox(height:170),const Center(child:CircularProgressIndicator(color:purple))])
                   :error!=null
                     ?ListView(
@@ -784,7 +777,7 @@ class _ChatsState extends State<Chats>{
                       children:[const SizedBox(height:125),EmptyState(icon:Icons.forum_outlined,title:s.noChats,sub:s.noChatsSub)]
                     )
                     :ListView.separated(
-                      physics:const AlwaysScrollableScrollPhysics(),
+                      physics:const ClampingScrollPhysics(),
                       padding:const EdgeInsets.fromLTRB(14,2,14,100),
                       itemCount:filtered.length,
                       separatorBuilder:(_,__)=>const SizedBox(height:9),
@@ -793,11 +786,11 @@ class _ChatsState extends State<Chats>{
                         child:Tile(chat:filtered[i],tap:()=>widget.onOpen(filtered[i])),
                       ),
                     ),
-              ),
             ),
           ],
         ),
       ],
+      ),
     );
   }
 }
@@ -1679,10 +1672,13 @@ class _Glow extends StatelessWidget{
   final double size;final Color color;const _Glow({required this.size,required this.color});
   @override Widget build(BuildContext context)=>IgnorePointer(child:Container(width:size,height:size,decoration:BoxDecoration(shape:BoxShape.circle,color:color,boxShadow:[BoxShadow(color:color,blurRadius:90,spreadRadius:30)])));
 }
-class _CircleAction extends StatefulWidget{
+class _CircleAction extends StatelessWidget{
   final IconData icon;final VoidCallback onTap;final bool filled,busy;
   const _CircleAction({required this.icon,required this.onTap,this.filled=false,this.busy=false});
-  @override State<_CircleAction> createState()=>_CircleActionState();
+  @override Widget build(BuildContext context){
+    final dark=Theme.of(context).brightness==Brightness.dark;
+    return Material(color:filled?purple:(dark?surface2:const Color(0xFFECEAF2)),borderRadius:BorderRadius.circular(18),clipBehavior:Clip.antiAlias,child:InkWell(borderRadius:BorderRadius.circular(18),onTap:busy?null:onTap,splashColor:purple.withOpacity(.16),highlightColor:purple.withOpacity(.08),child:SizedBox(width:50,height:50,child:Center(child:busy?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):Icon(icon,color:filled?Colors.white:null)))));
+  }
 }
 class _CircleActionState extends State<_CircleAction>{
   bool pressed=false;
