@@ -564,7 +564,7 @@ String friendlyError(Object ex,AppStrings s){
 
 class Chat{final String id;String name,preview,time;bool online;int unread;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0});}
 class UserX{final String id,name,username;UserX(this.id,this.name,this.username);}
-class Msg{final String id,text,sender,type,mediaUrl;final bool mine;Msg(this.id,this.text,this.sender,this.mine,{this.type='text',this.mediaUrl=''} }
+class Msg{final String id,text,sender,type,mediaUrl;final bool mine;Msg(this.id,this.text,this.sender,this.mine,{this.type='text',this.mediaUrl=''})}
 
 class Shell extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
