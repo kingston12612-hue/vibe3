@@ -195,9 +195,9 @@ class _AuthState extends State<AuthScreen>{
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor:Colors.transparent,
       statusBarIconBrightness:Brightness.light,
-      systemNavigationBarColor:Colors.transparent,
+      systemNavigationBarColor:bg,
       systemNavigationBarIconBrightness:Brightness.light,
-      systemNavigationBarDividerColor:Colors.transparent,
+      systemNavigationBarDividerColor:bg,
       systemNavigationBarContrastEnforced:false,
     ));
   }
@@ -221,8 +221,12 @@ class _AuthState extends State<AuthScreen>{
     final s=S(context);
     final dark=Theme.of(context).brightness==Brightness.dark;
     return Scaffold(
+      backgroundColor:bg,
+      extendBody:true,
       body: SafeArea(
-        child: Stack(
+        child: Container(
+          color:bg,
+          child:Stack(
           children:[
             Positioned(top:-120,right:-90,child:_Glow(size:300,color:purple.withOpacity(.20))),
             Positioned(bottom:-140,left:-110,child:_Glow(size:320,color:pink.withOpacity(.14))),
@@ -265,13 +269,19 @@ class _AuthState extends State<AuthScreen>{
                           _AuthMode(
                             label:s.signIn,
                             active:!register,
-                            onTap:busy?null:()=>setState(()=>register=false),
+                            onTap:busy?null:(){
+                              FocusScope.of(context).unfocus();
+                              setState(()=>register=false);
+                            },
                           ),
                           const SizedBox(width:10),
                           _AuthMode(
                             label:s.createAccount,
                             active:register,
-                            onTap:busy?null:()=>setState(()=>register=true),
+                            onTap:busy?null:(){
+                              FocusScope.of(context).unfocus();
+                              setState(()=>register=true);
+                            },
                           ),
                         ],
                       ),
@@ -409,7 +419,10 @@ class _AuthState extends State<AuthScreen>{
                       const SizedBox(height:28),
                       Center(
                         child:TextButton(
-                          onPressed:busy?null:()=>setState(()=>register=!register),
+                          onPressed:busy?null:(){
+                            FocusScope.of(context).unfocus();
+                            setState(()=>register=!register);
+                          },
                           child:Text(
                             register?s.alreadyHave:s.newToVibe,
                             style:const TextStyle(fontWeight:FontWeight.w800),
