@@ -776,7 +776,7 @@ class _ChatsState extends State<Chats>{
                   :error!=null
                     ?ListView(
                       physics:const AlwaysScrollableScrollPhysics(),
-                      children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:S('').connectionError,sub:error!)]
+                      children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)]
                     )
                   :filtered.isEmpty
                     ?ListView(
