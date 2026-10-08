@@ -713,13 +713,14 @@ class Chats extends StatefulWidget{
   @override State<Chats> createState()=>_ChatsState();
 }
 class _ChatsState extends State<Chats>{
-  String q='';bool loading=true;List<Chat> list=[];
+  String q='';bool loading=true;List<Chat> list=[];String? error;
   @override void initState(){super.initState();load();}
   Future<void> load()async{
     try{
       final a=await Api.get('/chats');
       list=(a as List).map((x)=>Chat((x['id']??'').toString(),(x['title']??'Chat').toString(),(x['preview']??'').toString(),_time(x['created_at']))).toList();
-    }catch(_){}
+      error=null;
+    }catch(e){error=e.toString();}
     if(mounted)setState(()=>loading=false);
   }
   String _time(dynamic v){
@@ -772,6 +773,11 @@ class _ChatsState extends State<Chats>{
                 onRefresh:load,
                 child:loading
                   ?ListView(children:[const SizedBox(height:170),const Center(child:CircularProgressIndicator(color:purple))])
+                  :error!=null
+                    ?ListView(
+                      physics:const AlwaysScrollableScrollPhysics(),
+                      children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:S('').connectionError,sub:error!)]
+                    )
                   :filtered.isEmpty
                     ?ListView(
                       physics:const AlwaysScrollableScrollPhysics(),
@@ -1045,12 +1051,14 @@ class _ChatState extends State<ChatPage>{
     setState(()=>sending=true);
     try{
       final payload={'chatId':widget.chat.id,'body':body,'type':type,'mediaUrl':mediaUrl};
+      final x=await Api.post('/chats/'+widget.chat.id+'/messages',{'body':body,'type':type,'mediaUrl':mediaUrl});
+      final id=(x['id']??DateTime.now().microsecondsSinceEpoch).toString();
+      final sender=(x['sender_name']??'').toString();
+      if(mounted&&!msgs.any((m)=>m.id==id)){
+        setState(()=>msgs.add(Msg(id,body,sender,true,type:type,mediaUrl:mediaUrl)));
+      }
       if(socket?.connected==true){
-        socket!.emit('message',payload);
-      }else{
-        final x=await Api.post('/chats/'+widget.chat.id+'/messages',{'body':body,'type':type,'mediaUrl':mediaUrl});
-        final id=(x['id']??DateTime.now().microsecondsSinceEpoch).toString();
-        if(mounted&&!msgs.any((m)=>m.id==id))setState(()=>msgs.add(Msg(id,body,'',true,type:type,mediaUrl:mediaUrl)));
+        socket!.emit('message',{'chatId':widget.chat.id,'body':body,'type':type,'mediaUrl':mediaUrl,'clientId':id});
       }
       WidgetsBinding.instance.addPostFrameCallback((_)=>scrollEnd());
     }catch(_){
@@ -1111,13 +1119,16 @@ class _ChatState extends State<ChatPage>{
   void scrollEnd(){if(!scroll.hasClients)return;scroll.animateTo(scroll.position.maxScrollExtent,duration:const Duration(milliseconds:220),curve:Curves.easeOut);}
   @override Widget build(BuildContext context){
     final s=S(context);
+    final dark=Theme.of(context).brightness==Brightness.dark;
+    final pageBg=dark?bg:const Color(0xFFF3F1FA);
     return Scaffold(
+      backgroundColor:pageBg,
       body:Column(children:[
         SafeArea(
           bottom:false,
           child:Container(
             height:72,
-            color:bg,
+            color:pageBg,
             padding:const EdgeInsets.symmetric(horizontal:6),
             child:Row(
               children:[
@@ -1173,16 +1184,18 @@ class _ChatState extends State<ChatPage>{
           ),
         ),
         Expanded(
-          child:Stack(
-            children:[
-              Positioned.fill(child:CustomPaint(painter:_Y2KGrid(stroke.withOpacity(.34)))),
-              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(.045),Colors.transparent,pink.withOpacity(.035)])))),
+          child:Container(
+            color:pageBg,
+            child:Stack(
+              children:[
+              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(dark?.045:.025),Colors.transparent,pink.withOpacity(dark?.035:.018)])))),
               loading
                 ?const Center(child:CircularProgressIndicator())
                 :msgs.isEmpty
                   ?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub)
                   :ListView.builder(controller:scroll,padding:const EdgeInsets.fromLTRB(14,18,14,14),itemCount:msgs.length,itemBuilder:(_,i)=>Bubble(key:ValueKey(msgs[i].id),msg:msgs[i])),
-            ],
+              ],
+            ),
           ),
         ),
         SafeArea(top:false,child:Padding(padding:const EdgeInsets.fromLTRB(10,6,10,10),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
@@ -1300,6 +1313,8 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
     final msg=widget.msg;
+    final cs=Theme.of(context).colorScheme;
+    final incoming=dark?surface2:Colors.white;
     return Align(
       alignment:msg.mine?Alignment.centerRight:Alignment.centerLeft,
       child:FadeTransition(
@@ -1308,14 +1323,14 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
           scale:scale,
           child:Container(
             constraints:const BoxConstraints(maxWidth:325),margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),
-            decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:(dark?surface2:Colors.white),borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:dark?stroke:Colors.black12)),
+            decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:incoming,borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:cs.outline.withOpacity(dark?.75:.55))),
             child:msg.type=='image'&&msg.mediaUrl.isNotEmpty
               ?ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover))
               :Row(mainAxisSize:MainAxisSize.min,children:[
                   if(msg.type=='video')const Icon(Icons.videocam_rounded,size:22,color:Colors.white),
                   if(msg.type=='audio')const Icon(Icons.mic_rounded,size:22,color:Colors.white),
                   if(msg.type!='text')const SizedBox(width:8),
-                  Flexible(child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:null,fontSize:15,height:1.3))),
+                  Flexible(child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:cs.onSurface,fontSize:15,height:1.3))),
                 ]),
           ),
         ),
@@ -1328,14 +1343,14 @@ class Contacts extends StatefulWidget{
   final ValueChanged<UserX> onOpen;const Contacts({super.key,required this.onOpen});@override State<Contacts> createState()=>_ContactsState();
 }
 class _ContactsState extends State<Contacts>{
-  String q='';bool loading=true;List<UserX> people=[];
+  String q='';bool loading=true;List<UserX> people=[];String? error;
   @override void initState(){super.initState();search();}
   Future<void> search()async{
     if(!mounted)return;setState(()=>loading=true);
     try{
       final a=await Api.get('/users?q='+Uri.encodeQueryComponent(q));
       people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString())).toList();
-    }catch(_){people=[];}
+    }catch(e){people=[];error=e.toString();}
     if(mounted)setState(()=>loading=false);
   }
   @override Widget build(BuildContext context){
@@ -1347,7 +1362,7 @@ class _ContactsState extends State<Contacts>{
         child:_GlassSearchField(hint:s.findPeopleHint,onChanged:(v){q=v.trim();search();}),
       ),
       const SizedBox(height:10),
-      Expanded(child:loading?const Center(child:CircularProgressIndicator()):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
+      Expanded(child:loading?const Center(child:CircularProgressIndicator()):error!=null?ListView(children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)]):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
         padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
         itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Material(
           type:MaterialType.transparency,
