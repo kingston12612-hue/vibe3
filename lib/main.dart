@@ -1188,7 +1188,7 @@ class _ChatState extends State<ChatPage>{
             color:pageBg,
             child:Stack(
               children:[
-              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(dark?.045:.025),Colors.transparent,pink.withOpacity(dark?.035:.018)])))),
+              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(dark ? .045 : .025),Colors.transparent,pink.withOpacity(dark ? .035 : .018)])))),
               loading
                 ?const Center(child:CircularProgressIndicator())
                 :msgs.isEmpty
@@ -1323,7 +1323,7 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
           scale:scale,
           child:Container(
             constraints:const BoxConstraints(maxWidth:325),margin:const EdgeInsets.only(bottom:7),padding:const EdgeInsets.symmetric(horizontal:15,vertical:11),
-            decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:incoming,borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:cs.outline.withOpacity(dark?.75:.55))),
+            decoration:BoxDecoration(gradient:msg.mine?const LinearGradient(colors:[purple,pink]):null,color:msg.mine?null:incoming,borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),border:msg.mine?null:Border.all(color:cs.outline.withOpacity(dark ? .75 : .55))),
             child:msg.type=='image'&&msg.mediaUrl.isNotEmpty
               ?ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover))
               :Row(mainAxisSize:MainAxisSize.min,children:[
