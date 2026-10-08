@@ -1119,9 +1119,25 @@ class _ChatState extends State<ChatPage>{
   void scrollEnd(){if(!scroll.hasClients)return;scroll.animateTo(scroll.position.maxScrollExtent,duration:const Duration(milliseconds:220),curve:Curves.easeOut);}
   @override Widget build(BuildContext context){
     final s=S(context);
+    // Keep the chat canvas explicit so inherited Material surface colors cannot paint a gray full-screen layer.
     final dark=Theme.of(context).brightness==Brightness.dark;
     final pageBg=dark?bg:const Color(0xFFF3F1FA);
-    return Scaffold(
+    final chatSurface=dark?surface:Colors.white;
+    return Theme(
+      data:Theme.of(context).copyWith(
+        scaffoldBackgroundColor:pageBg,
+        canvasColor:pageBg,
+        colorScheme:Theme.of(context).colorScheme.copyWith(
+          surface:chatSurface,
+          surfaceContainerLowest:pageBg,
+          surfaceContainerLow:pageBg,
+          surfaceContainer:chatSurface,
+          surfaceContainerHigh:chatSurface,
+          surfaceContainerHighest:chatSurface,
+        ),
+        cardColor:chatSurface,
+      ),
+      child:Scaffold(
       backgroundColor:pageBg,
       body:Column(children:[
         SafeArea(
@@ -1188,7 +1204,7 @@ class _ChatState extends State<ChatPage>{
             color:pageBg,
             child:Stack(
               children:[
-              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(dark ? .045 : .025),Colors.transparent,pink.withOpacity(dark ? .035 : .018)])))),
+              Positioned.fill(child:IgnorePointer(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[purple.withOpacity(dark ? .045 : .025),Colors.transparent,pink.withOpacity(dark ? .035 : .018)]))))),
               loading
                 ?const Center(child:CircularProgressIndicator())
                 :msgs.isEmpty
@@ -1204,6 +1220,7 @@ class _ChatState extends State<ChatPage>{
           const SizedBox(width:8),_CircleAction(icon:Icons.arrow_upward_rounded,filled:true,busy:sending,onTap:send),
         ]))),
       ]),
+      ),
     );
   }
   Future<void> showContact(BuildContext context)async{
