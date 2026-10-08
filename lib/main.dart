@@ -437,6 +437,7 @@ class _AuthState extends State<AuthScreen>{
           ],
         ),
       ),
+    ),
     );
   }
 }
