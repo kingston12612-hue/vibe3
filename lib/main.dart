@@ -10,12 +10,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 
-const apiBase=String.fromEnvironment('VIBE_API',defaultValue:'https://vibe-api-production-7f4a.up.railway.app');
+String apiBase=const String.fromEnvironment('VIBE_API',defaultValue:'https://vibe3-api.onrender.com');
 const bg=Color(0xFF0A0A10),surface=Color(0xFF15151D),surface2=Color(0xFF1C1C26),stroke=Color(0xFF282833),green=Color(0xFF59E391);
 const muted=Color(0xFF9193A5),purple=Color(0xFF9B6BFF),blue=Color(0xFF6FA8FF),pink=Color(0xFFE76BD0);
 const brandGrad=[pink,purple];
 
-void main()=>runApp(const VibeApp());
+Future<void> main()async{
+  WidgetsFlutterBinding.ensureInitialized();
+  try{
+    final p=await SharedPreferences.getInstance();
+    final u=p.getString('server_url');
+    if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
+  }catch(_){}
+  runApp(const VibeApp());
+}
 
 class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
@@ -73,7 +81,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.0.3';
+  String get version=>'v1.0.4';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -212,6 +220,35 @@ class _AuthState extends State<AuthScreen>{
     ));
   }
   @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();super.dispose();}
+  Future<void> _editServer()async{
+    final c=TextEditingController(text:apiBase);
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      backgroundColor:surface,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+      title:const Text('Адрес сервера',style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
+      content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        const Text('Обычно менять не нужно. Формат: https://...',style:TextStyle(color:muted,fontSize:12.5)),
+        const SizedBox(height:12),
+        TextField(controller:c,autofocus:true,keyboardType:TextInputType.url,style:const TextStyle(fontSize:14),decoration:InputDecoration(hintText:'https://vibe3-api.onrender.com',filled:true,fillColor:bg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:stroke)),isDense:true)),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Отмена')),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Сохранить')),
+      ],
+    ));
+    if(ok!=true)return;
+    var u=c.text.trim();
+    if(u.isEmpty)return;
+    if(!u.startsWith('http://')&&!u.startsWith('https://'))u='https://$u';
+    u=u.replaceAll(RegExp(r'/+$'),'');
+    apiBase=u;
+    final p=await SharedPreferences.getInstance();
+    await p.setString('server_url',u);
+    if(mounted){
+      setState((){});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Сервер: $u')));
+    }
+  }
   void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
   Future<void> submit()async{
     final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');
@@ -327,7 +364,14 @@ class _AuthState extends State<AuthScreen>{
                             Text(s.securitySub,textAlign:TextAlign.center,style:const TextStyle(color:muted,fontSize:11.5,height:1.3)),
                           ],
                         ),
-                        const SizedBox(height:28),
+                        const SizedBox(height:6),
+                        Center(child:TextButton.icon(
+                          onPressed:busy?null:_editServer,
+                          style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),minimumSize:Size.zero),
+                          icon:Icon(Icons.dns_outlined,size:14,color:muted.withOpacity(.8)),
+                          label:Text(apiBase.replaceAll(RegExp(r'^https?://'),''),style:const TextStyle(color:muted,fontSize:10.5)),
+                        )),
+                        const SizedBox(height:22),
                         Center(
                           child:TextButton(
                             onPressed:busy?null:(){FocusScope.of(context).unfocus();setState(()=>register=!register);},
