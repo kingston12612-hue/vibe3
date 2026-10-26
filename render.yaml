@@ -1,0 +1,15 @@
+# Render Blueprint — деплой одной кнопкой: New + → Blueprint → выбрать репо
+services:
+  - type: web
+    name: vibe3-api
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false          # вставь сюда строку подключения из Neon
+      - key: JWT_SECRET
+        generateValue: true

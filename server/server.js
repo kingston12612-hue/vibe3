@@ -9,7 +9,10 @@ const {Pool}=require('pg');
 const app=express();
 const server=http.createServer(app);
 const io=new Server(server,{cors:{origin:'*'}});
-const pool=new Pool();
+// TLS обязателен для облачных БД (Neon и др.), локальным хостам не нужен
+const _dbUrl=process.env.DATABASE_URL||'';
+const _dbLocal=/@(localhost|127\.0\.0\.1)/.test(_dbUrl);
+const pool=new Pool(_dbLocal?{}:{ssl:{rejectUnauthorized:false}});
 const SECRET=process.env.JWT_SECRET||'change-me';
 
 app.use(cors());
