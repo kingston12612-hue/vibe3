@@ -10,9 +10,13 @@ const app=express();
 const server=http.createServer(app);
 const io=new Server(server,{cors:{origin:'*'}});
 // TLS обязателен для облачных БД (Neon и др.), локальным хостам не нужен
-const _dbUrl=process.env.DATABASE_URL||'';
+const _dbUrlRaw=process.env.DATABASE_URL||'';
+const _dbUrl=_dbUrlRaw.trim().replace(/^["']+|["']+$/g,'');
 const _dbLocal=/@(localhost|127\.0\.0\.1)/.test(_dbUrl);
-const pool=new Pool(_dbLocal?{}:{ssl:{rejectUnauthorized:false}});
+let _dbHost='<НЕ ЗАДАН>';
+try{ if(_dbUrl) _dbHost=new URL(_dbUrl).hostname; }catch(e){ _dbHost='<строка не разбирается!>'; }
+console.log(`[db] DATABASE_URL: ${_dbUrl?'задан, host='+_dbHost:'НЕ ЗАДАН — сервер не сможет подключиться к БД'}`);
+const pool=new Pool(_dbUrl&&!_dbLocal?{connectionString:_dbUrl,ssl:{rejectUnauthorized:false}}:{});
 const SECRET=process.env.JWT_SECRET||'change-me';
 
 app.use(cors());
