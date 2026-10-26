@@ -86,11 +86,17 @@ app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,
  CASE WHEN c.is_group THEN c.title
       ELSE COALESCE((SELECT u.display_name FROM chat_members cm2 JOIN users u ON u.id=cm2.user_id WHERE cm2.chat_id=c.id AND cm2.user_id<>$1 LIMIT 1),c.title)
  END AS title,
- COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview
+ COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview,
+ COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) AS last_at,
+ (SELECT COUNT(*) FROM messages m3 WHERE m3.chat_id=c.id AND m3.sender_id<>$1 AND m3.created_at>COALESCE(cm.last_read_at,cm.joined_at)) AS unread
  FROM chats c
  JOIN chat_members cm ON cm.chat_id=c.id
  WHERE cm.user_id=$1 AND (c.is_group=true OR (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=c.id)=2)
  ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
+app.post('/chats/:id/read',auth,async(req,res)=>{try{
+ await pool.query('UPDATE chat_members SET last_read_at=now() WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ res.json({ok:true});
+}catch(e){console.error('read_mark_failed',e);res.status(500).json({error:'read_mark_failed'});}});
 app.post('/chats/:id/members',auth,async(req,res)=>{
  try{
   const owner=await pool.query('SELECT 1 FROM chat_members cm JOIN chats c ON c.id=cm.chat_id WHERE cm.chat_id=$1 AND cm.user_id=$2 AND c.is_group=true',[req.params.id,req.user.id]);
@@ -118,7 +124,7 @@ app.post('/chats/:id/messages',auth,async(req,res)=>{try{
 }catch(e){console.error(e);res.status(500).json({error:'message_failed'});}});
 
 io.use((s,next)=>{try{s.user=jwt.verify(s.handshake.auth?.token||'',SECRET);next();}catch{next(new Error('unauthorized'));}});
-io.on('connection',s=>{s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));s.on('joinChat',id=>s.join('chat:'+id));s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);}catch(e){s.emit('error',{error:'message_failed'});}});s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));});
+io.on('connection',s=>{s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));s.on('joinChat',id=>s.join('chat:'+id));s.on('typing',m=>{if(!m||!m.chatId)return;io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});});s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);}catch(e){s.emit('error',{error:'message_failed'});}});s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));});
 
 async function migrate(){
   const statements=[
@@ -161,6 +167,7 @@ async function migrate(){
       joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       PRIMARY KEY(chat_id,user_id)
     )`,
+    'ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS last_read_at TIMESTAMPTZ',
     'CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at)',
     'CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id)'
   ];
