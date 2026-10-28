@@ -99,7 +99,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.0.5';
+  String get version=>'v1.0.6';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -250,6 +250,7 @@ class _AuthState extends State<AuthScreen>{
         TextField(controller:c,autofocus:true,keyboardType:TextInputType.url,style:const TextStyle(fontSize:14),decoration:InputDecoration(hintText:'https://vibe3-api.onrender.com',filled:true,fillColor:bg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:stroke)),isDense:true)),
       ]),
       actions:[
+        TextButton(onPressed:()=>{c.text='https://vibe3-api.onrender.com'},child:const Text('Стандартный')),
         TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Отмена')),
         FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Сохранить')),
       ],
@@ -262,12 +263,43 @@ class _AuthState extends State<AuthScreen>{
     apiBase=u;
     final p=await SharedPreferences.getInstance();
     await p.setString('server_url',u);
-    if(mounted){
-      setState((){});
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Сервер: $u')));
-    }
+    if(mounted)setState((){});
+    await _checkConn();
   }
   void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  Future<void> _checkConn()async{
+    final s=S(context);
+    if(busy)return;
+    setState(()=>busy=true);
+    final sw=Stopwatch()..start();
+    bool ok=false;String detail;
+    try{
+      final r=await http.get(Uri.parse('$apiBase/health')).timeout(const Duration(seconds:25));
+      sw.stop();
+      if(r.statusCode==200){ok=true;detail='Сервер отвечает за ${(sw.elapsedMilliseconds/1000).toStringAsFixed(1)} с.\n\nСвязь есть — если вход всё равно не проходит, проблема в данных аккаунта, а не в сети.';}
+      else{sw.stop();detail='Сервер ответил ошибкой HTTP ${r.statusCode}. Сними скриншот и отправь разработчику.';}
+    }catch(e){
+      sw.stop();
+      final x=e.toString();
+      if(x.contains('Failed host lookup'))detail='Телефон вообще не находит этот адрес.\n\nПроверь адрес кнопкой выше и смени сеть: Wi-Fi ↔ мобильный интернет.';
+      else if(x.contains('TimeoutException')||x.contains('timeout'))detail='Сервер не отвечает уже ${(sw.elapsedMilliseconds/1000).toStringAsFixed(0)} с — либо просыпается, либо сеть его блокирует. Подожди полминуты и проверь ещё раз; если в браузере телефона сайт открывается, а тут нет — смени сеть.';
+      else if(x.contains('HandshakeException'))detail='Ошибка шифрования (TLS) между телефоном и сервером. Смени сеть (Wi-Fi ↔ мобильный интернет) — часто помогает.';
+      else detail='Не удалось подключиться:\n\n$x\n\nСмени сеть (Wi-Fi ↔ мобильный интернет) и проверь адрес сервера.';
+    }
+    if(!mounted)return;
+    setState(()=>busy=false);
+    await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
+      backgroundColor:surface,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
+      title:Row(children:[Icon(ok?Icons.wifi_rounded:Icons.wifi_off_rounded,size:20,color:ok?green:pink),const SizedBox(width:8),Text(ok?'Связь есть':'Связи нет',style:const TextStyle(fontWeight:FontWeight.w800,fontSize:17))]),
+      content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text('Сервер: $apiBase',style:const TextStyle(color:muted,fontSize:11.5)),
+        const SizedBox(height:12),
+        Text(detail,style:const TextStyle(fontSize:13.5,height:1.45)),
+      ]),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Понятно'))],
+    ));
+  }
   Future<void> submit()async{
     final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');
     if(!e.contains('@')||!e.contains('.')){snack(s.emailInvalid);return;}
@@ -388,6 +420,12 @@ class _AuthState extends State<AuthScreen>{
                           style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),minimumSize:Size.zero),
                           icon:Icon(Icons.dns_outlined,size:14,color:muted.withOpacity(.8)),
                           label:Text(apiBase.replaceAll(RegExp(r'^https?://'),''),style:const TextStyle(color:muted,fontSize:10.5)),
+                        )),
+                        Center(child:TextButton.icon(
+                          onPressed:busy?null:_checkConn,
+                          style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),minimumSize:Size.zero),
+                          icon:Icon(Icons.wifi_tethering_rounded,size:14,color:muted.withOpacity(.8)),
+                          label:const Text('проверить связь',style:TextStyle(color:muted,fontSize:10.5)),
                         )),
                         const SizedBox(height:22),
                         Center(
@@ -550,7 +588,9 @@ String friendlyError(Object ex,AppStrings s){
   if(x.contains('invalid_credentials'))return s.invalidCredentials;
   if(x.contains('http_429'))return ru429(s);
   if(x.contains('http_5'))return s.connectionError+' · сервер недоступен, попробуй через минуту';
-  if(x.contains('timeout')||x.contains('SocketException')||x.contains('ClientException')||x.contains('HandshakeException')||x.contains('Connection')||x.contains('connection'))return s.connectionError;
+  if(x.contains('TimeoutException')||x.contains('timeout'))return s.connectionError+' · сервер не отвечает';
+  if(x.contains('Failed host lookup'))return s.connectionError+' · адрес не найден — проверь сервер внизу экрана';
+  if(x.contains('SocketException')||x.contains('ClientException')||x.contains('HandshakeException')||x.contains('Connection')||x.contains('connection'))return s.connectionError;
   if(x.contains('http_'))return s.connectionError+' · '+x;
   return s.connectionError+' · '+x;
 }
