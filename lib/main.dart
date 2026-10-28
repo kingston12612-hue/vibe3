@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
@@ -26,11 +27,28 @@ Future<void> main()async{
 }
 
 class Api{
+ static bool _awake=false;
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
- static Future<dynamic> get(String path)async{final r=await http.get(Uri.parse('$apiBase$path'),headers:await headers()).timeout(const Duration(seconds:15));if(r.statusCode<200||r.statusCode>=300)throw Exception('http_${r.statusCode}');return jsonDecode(r.body);}
- static Future<dynamic> post(String path,Map<String,dynamic> body)async{try{final r=await http.post(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:15));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;}catch(e){rethrow;}}
- static Future<dynamic> put(String path,Map<String,dynamic> body)async{try{final r=await http.put(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:15));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;}catch(e){rethrow;}}
+ static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
+ // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
+ static Future<void> _ensureAwake()async{
+  for(int i=0;i<8;i++){
+   try{final r=await http.get(Uri.parse('$apiBase/health')).timeout(const Duration(seconds:8));if(r.statusCode==200)return;}catch(_){}
+   try{await Future.delayed(const Duration(milliseconds:2000));}catch(_){}
+  }
+ }
+ static Future<T> _guard<T>(Future<T> Function() fn)async{
+  try{return await fn();}catch(e){
+   if(_awake||!_transient(e))rethrow;
+   _awake=true;
+   await _ensureAwake();
+   return await fn();
+  }
+ }
+ static Future<dynamic> get(String path)=>_guard(()async{final r=await http.get(Uri.parse('$apiBase$path'),headers:await headers()).timeout(const Duration(seconds:60));if(r.statusCode<200||r.statusCode>=300)throw Exception('http_${r.statusCode}');return jsonDecode(r.body);});
+ static Future<dynamic> post(String path,Map<String,dynamic> body)=>_guard(()async{final r=await http.post(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:60));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;});
+ static Future<dynamic> put(String path,Map<String,dynamic> body)=>_guard(()async{final r=await http.put(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:60));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;});
 }
 
 class AppStrings {
@@ -81,7 +99,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.0.4';
+  String get version=>'v1.0.5';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -530,10 +548,13 @@ String friendlyError(Object ex,AppStrings s){
   if(x.contains('username_taken'))return s.usernameTaken;
   if(x.contains('invalid_username'))return s.invalidUsername;
   if(x.contains('invalid_credentials'))return s.invalidCredentials;
-  if(x.contains('timeout')||x.contains('SocketException'))return s.connectionError;
+  if(x.contains('http_429'))return ru429(s);
+  if(x.contains('http_5'))return s.connectionError+' · сервер недоступен, попробуй через минуту';
+  if(x.contains('timeout')||x.contains('SocketException')||x.contains('ClientException')||x.contains('HandshakeException')||x.contains('Connection')||x.contains('connection'))return s.connectionError;
   if(x.contains('http_'))return s.connectionError+' · '+x;
-  return s.invalidCredentials;
+  return s.connectionError+' · '+x;
 }
+String ru429(AppStrings s)=>s.connectionError+' · слишком много попыток, подожди минуту';
 
 class Chat{final String id;String name,preview,time;bool online,isGroup;int unread;DateTime? lastAt;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0,this.isGroup=false,this.lastAt});}
 class UserX{final String id,name,username;UserX(this.id,this.name,this.username);}
