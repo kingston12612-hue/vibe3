@@ -60,12 +60,12 @@ app.post('/auth/login',async(req,res)=>{try{
  const u=r.rows[0];res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-const _ME_COLS='id,email,username,display_name,avatar_url,COALESCE(show_online,true) AS show_online,COALESCE(show_typing,true) AS show_typing,COALESCE(show_reads,true) AS show_reads';
+const _ME_COLS='id,email,username,display_name,avatar_url,COALESCE(show_online,true) AS show_online,COALESCE(show_typing,true) AS show_typing,COALESCE(show_reads,true) AS show_reads,COALESCE(block_screenshots,false) AS block_screenshots,COALESCE(allow_calls,true) AS allow_calls';
 app.get('/me',auth,async(req,res)=>{const r=await pool.query(`SELECT ${_ME_COLS} FROM users WHERE id=$1`,[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
 // Приватность: флаги хранятся на сервере, чтобы собеседник не видел твой статус даже через прямой запрос
 function _privacy(body){
   const out={};
-  for(const [k,col] of [['showOnline','show_online'],['showTyping','show_typing'],['showReads','show_reads']]){
+  for(const [k,col] of [['showOnline','show_online'],['showTyping','show_typing'],['showReads','show_reads'],['blockScreenshots','block_screenshots'],['allowCalls','allow_calls']]){
     if(typeof body?.[k]==='boolean')out[col]=body[k];
   }
   return out;
@@ -206,7 +206,7 @@ app.get('/chats/:id/peer',auth,async(req,res)=>{
  try{
   const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
   if(!member.rowCount)return res.status(403).json({error:'not_member'});
-  const r=await pool.query(`SELECT u.id,u.username,u.display_name,u.avatar_url,COALESCE(u.show_online,true) AS show_online,COALESCE(u.show_typing,true) AS show_typing,COALESCE(u.show_reads,true) AS show_reads FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 AND cm.user_id<>$2 LIMIT 1`,[req.params.id,req.user.id]);
+  const r=await pool.query(`SELECT u.id,u.username,u.display_name,u.avatar_url,COALESCE(u.show_online,true) AS show_online,COALESCE(u.show_typing,true) AS show_typing,COALESCE(u.show_reads,true) AS show_reads,COALESCE(u.block_screenshots,false) AS block_screenshots,COALESCE(u.allow_calls,true) AS allow_calls FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 AND cm.user_id<>$2 LIMIT 1`,[req.params.id,req.user.id]);
   if(!r.rowCount)return res.status(404).json({error:'peer_not_found'});
   res.json(r.rows[0]);
  }catch(e){console.error('peer_lookup_failed',e);res.status(500).json({error:'peer_lookup_failed'});}
@@ -251,6 +251,10 @@ io.on('connection',s=>{
    const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);
    const toMember=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,m.to]);
    if(!member.rowCount||!toMember.rowCount)return;
+   // Приватность: если у получателя звонки запрещены — вызов даже не доставляется,
+   // а звонящему сразу приходит «отклонено» (звонок блокирует сервер, не приложение)
+   const callee=await pool.query('SELECT COALESCE(allow_calls,true) AS ac FROM users WHERE id=$1',[m.to]);
+   if(callee.rows[0]?.ac===false){io.to('user:'+s.user.id).emit('call:end',{chatId:String(m.chatId),from:s.user.id,reason:'declined'});return;}
    io.to('user:'+m.to).emit('call',{chatId:String(m.chatId),from:s.user.id,name:String(m.name||'').slice(0,60),video:!!m.video,offer:m.offer});
  }catch(e){s.emit('error',{error:'call_failed'});}});
  s.on('call:answer',m=>{if(m&&m.to&&m.answer)io.to('user:'+m.to).emit('call:answer',{chatId:String(m.chatId||''),from:s.user.id,answer:m.answer});});
@@ -316,7 +320,9 @@ async function migrate(){
     'CREATE INDEX IF NOT EXISTS idx_calls_users ON calls(caller_id,callee_id,created_at DESC)',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_online BOOLEAN NOT NULL DEFAULT TRUE',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_typing BOOLEAN NOT NULL DEFAULT TRUE',
-    'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_reads BOOLEAN NOT NULL DEFAULT TRUE'
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_reads BOOLEAN NOT NULL DEFAULT TRUE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS block_screenshots BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_calls BOOLEAN NOT NULL DEFAULT TRUE'
   ];
   for(const sql of statements){
     try{await pool.query(sql);}

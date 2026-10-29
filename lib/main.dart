@@ -21,6 +21,18 @@ const bg=Color(0xFF0A0A10),surface=Color(0xFF15151D),surface2=Color(0xFF1C1C26),
 const muted=Color(0xFF9193A5),purple=Color(0xFF9B6BFF),blue=Color(0xFF6FA8FF),pink=Color(0xFFE76BD0);
 const brandGrad=[pink,purple];
 
+// Палитра из ТЕМЫ (не константы!): любые экраны обязаны брать цвета отсюда,
+// чтобы светлая тема применялась во всём приложении и текст оставался видимым.
+extension VibePal on BuildContext{
+  bool get vibDark=>Theme.of(this).brightness==Brightness.dark;
+  Color get cBg=>Theme.of(this).scaffoldBackgroundColor;
+  Color get cSurf=>Theme.of(this).colorScheme.surface;
+  Color get cSurf2=>Theme.of(this).colorScheme.surfaceContainerHighest;
+  Color get cLine=>Theme.of(this).colorScheme.outline;
+  Color get cMut=>Theme.of(this).colorScheme.onSurfaceVariant;
+  Color get cTxt=>Theme.of(this).colorScheme.onSurface;
+}
+
 // Глобальное состояние: какой чат открыт (чтобы не показывать баннер в нём),
 // версия списка чатов (reload при удалении чужим участником), живые тумблеры приватности
 String? activeOpenChatId;
@@ -45,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.1.1 api=$apiBase');
+  Api.debugLog('app start v1.2.0 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -54,7 +66,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
- static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.1.1'})).timeout(const Duration(seconds:5));}catch(_){}}
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.2.0'})).timeout(const Duration(seconds:5));}catch(_){}}
  // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
  static Future<void> _ensureAwake()async{
   for(int i=0;i<8;i++){
@@ -126,7 +138,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.1.1';
+  String get version=>'v1.2.0';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -237,6 +249,30 @@ class AppStrings {
   String get securityRealSub=>ru?'PIN-код и защита экрана':'PIN code and screen shield';
   String get securityNote=>ru?'Вход защищён серверной JWT-сессией. PIN-код и запрет скриншотов защищают приложение на самом телефоне.':'Login is protected by a server-side JWT session. The PIN and screenshot shield protect the app on this device.';
   String get photoTooBig=>ru?'Фото слишком большое, попробуй другое':'Photo is too large, try another one';
+  String get profileTagline=>ru?'на vibe<3':'on vibe<3';
+  String get emailLabel=>'Email';
+  String get usernameLabel=>'Username';
+  String get openProfile=>ru?'Открыть профиль':'Open profile';
+  String get themePick=>ru?'Тема интерфейса':'Interface theme';
+  String get themeSystemHint=>ru?'Меняется сразу во всём приложении':'Applies to the whole app instantly';
+  String get privacyWhoOnline=>ru?'Кто видит, когда я в сети':"Who sees when I'm online";
+  String get privacyEveryone=>ru?'Все':'Everyone';
+  String get privacyNobody=>ru?'Никто':'Nobody';
+  String get privacyWhoOnlineSub=>ru?'Если «Никто» — твой статус скрыт даже у контактов':'If Nobody, your presence is hidden from everyone';
+  String get privacyShotsMine=>ru?'Защита моих чатов от скриншотов':'Screenshot shield for my chats';
+  String get privacyShotsMineSub=>ru?'Собеседник не сможет сделать скриншот чата с тобой':'Your peer cannot screenshot the chat with you';
+  String get privacyWhoCalls=>ru?'Кто может звонить мне':'Who can call me';
+  String get privacyWhoCallsSub=>ru?'Если «Никто» — сервер сразу отклоняет звонки':'If Nobody, the server rejects calls instantly';
+  String get privacySectionVisibility=>ru?'Статус и активность':'Presence and activity';
+  String get privacySectionChats=>ru?'Чаты и звонки':'Chats and calls';
+  String get callsBlockedByPeer=>ru?'Собеседник запретил звонки в приватности':'Peer disabled calls in privacy';
+  String get shotsByPeer=>ru?'Скриншоты в этом чате запрещены (просьба собеседника)':'Screenshots are blocked here (peer request)';
+  String get secSectionPin=>ru?'PIN-код':'PIN code';
+  String get secSectionScreen=>ru?'Экран':'Screen';
+  String get secPinSub=>ru?'Второй замок: без PIN приложение не открыть':'A second lock: the app cannot open without it';
+  String get secShotsSub2=>ru?'Нельзя сделать скриншот или запись экрана':'Screenshots and screen recording are blocked';
+  String get saveChanges=>ru?'Сохранить изменения':'Save changes';
+  String get profileUpdated=>ru?'Профиль обновлён':'Profile updated';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -344,26 +380,18 @@ class _AuthState extends State<AuthScreen>{
   @override void initState(){
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor:Colors.transparent,
-      statusBarIconBrightness:Brightness.light,
-      systemNavigationBarColor:bg,
-      systemNavigationBarIconBrightness:Brightness.light,
-      systemNavigationBarDividerColor:bg,
-      systemNavigationBarContrastEnforced:false,
-    ));
   }
   @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();super.dispose();}
   Future<void> _editServer()async{
     final c=TextEditingController(text:apiBase);
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
-      backgroundColor:surface,
+      backgroundColor:context.cSurf,
       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
       title:const Text('Адрес сервера',style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        const Text('Обычно менять не нужно. Формат: https://...',style:TextStyle(color:muted,fontSize:12.5)),
+        Text('Обычно менять не нужно. Формат: https://...',style:TextStyle(color:context.cMut,fontSize:12.5)),
         const SizedBox(height:12),
-        TextField(controller:c,autofocus:true,keyboardType:TextInputType.url,style:const TextStyle(fontSize:14),decoration:InputDecoration(hintText:'https://vibe3-api.onrender.com',filled:true,fillColor:bg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:stroke)),isDense:true)),
+        TextField(controller:c,autofocus:true,keyboardType:TextInputType.url,style:TextStyle(fontSize:14),decoration:InputDecoration(hintText:'https://vibe3-api.onrender.com',filled:true,fillColor:context.cBg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:BorderSide(color:context.cLine)),isDense:true)),
       ]),
       actions:[
         TextButton(onPressed:()=>{c.text='https://vibe3-api.onrender.com'},child:const Text('Стандартный')),
@@ -405,11 +433,11 @@ class _AuthState extends State<AuthScreen>{
     if(!mounted)return;
     setState(()=>busy=false);
     await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
-      backgroundColor:surface,
+      backgroundColor:context.cSurf,
       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),
       title:Row(children:[Icon(ok?Icons.wifi_rounded:Icons.wifi_off_rounded,size:20,color:ok?green:pink),const SizedBox(width:8),Text(ok?'Связь есть':'Связи нет',style:const TextStyle(fontWeight:FontWeight.w800,fontSize:17))]),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text('Сервер: $apiBase',style:const TextStyle(color:muted,fontSize:11.5)),
+        Text('Сервер: $apiBase',style:TextStyle(color:context.cMut,fontSize:11.5)),
         const SizedBox(height:12),
         Text(detail,style:const TextStyle(fontSize:13.5,height:1.45)),
       ]),
@@ -434,12 +462,21 @@ class _AuthState extends State<AuthScreen>{
   @override Widget build(BuildContext context){
     final s=S(context);
     final dark=Theme.of(context).brightness==Brightness.dark;
+    // системные панели подстраиваются под тему мгновенно
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      statusBarColor:Colors.transparent,
+      statusBarIconBrightness:dark?Brightness.light:Brightness.dark,
+      systemNavigationBarColor:context.cBg,
+      systemNavigationBarIconBrightness:dark?Brightness.light:Brightness.dark,
+      systemNavigationBarDividerColor:context.cBg,
+      systemNavigationBarContrastEnforced:false,
+    ));
     return Scaffold(
-      backgroundColor:bg,
+      backgroundColor:context.cBg,
       extendBody:true,
       body:SafeArea(
         child:Container(
-          color:bg,
+          color:context.cBg,
           child:Stack(
             children:[
               Positioned(top:-120,right:-90,child:_Glow(size:300,color:purple.withOpacity(.20))),
@@ -457,12 +494,12 @@ class _AuthState extends State<AuthScreen>{
                           children:[
                             const _BrandMark(),
                             const SizedBox(width:14),
-                            const Column(
+                            Column(
                               crossAxisAlignment:CrossAxisAlignment.start,
                               children:[
                                 _VibeWordmark(fontSize:27),
                                 SizedBox(height:2),
-                                Text('private. personal. yours.',style:TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w600)),
+                                Text('private. personal. yours.',style:TextStyle(color:context.cMut,fontSize:12,fontWeight:FontWeight.w600)),
                               ],
                             ),
                           ],
@@ -470,7 +507,7 @@ class _AuthState extends State<AuthScreen>{
                         const SizedBox(height:42),
                         Text(register?s.createAccount:s.welcomeBack,style:const TextStyle(fontSize:36,fontWeight:FontWeight.w900,letterSpacing:-1.2,height:1.05)),
                         const SizedBox(height:9),
-                        Text(register?s.joinVibe:s.signInContinue,style:const TextStyle(color:muted,fontSize:14,height:1.45)),
+                        Text(register?s.joinVibe:s.signInContinue,style:TextStyle(color:context.cMut,fontSize:14,height:1.45)),
                         const SizedBox(height:26),
                         Row(children:[
                           Expanded(child:_AuthMode(label:s.signIn,active:!register,onTap:busy?null:(){FocusScope.of(context).unfocus();setState(()=>register=false);})),
@@ -526,23 +563,23 @@ class _AuthState extends State<AuthScreen>{
                         Row(
                           mainAxisAlignment:MainAxisAlignment.center,
                           children:[
-                            Icon(Icons.lock_outline_rounded,size:13,color:(dark?muted:Colors.black45)),
+                            Icon(Icons.lock_outline_rounded,size:13,color:(dark?context.cMut:Colors.black45)),
                             const SizedBox(width:6),
-                            Text(s.securitySub,textAlign:TextAlign.center,style:const TextStyle(color:muted,fontSize:11.5,height:1.3)),
+                            Text(s.securitySub,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:11.5,height:1.3)),
                           ],
                         ),
                         const SizedBox(height:6),
                         Center(child:TextButton.icon(
                           onPressed:busy?null:_editServer,
                           style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),minimumSize:Size.zero),
-                          icon:Icon(Icons.dns_outlined,size:14,color:muted.withOpacity(.8)),
-                          label:Text(apiBase.replaceAll(RegExp(r'^https?://'),''),style:const TextStyle(color:muted,fontSize:10.5)),
+                          icon:Icon(Icons.dns_outlined,size:14,color:context.cMut.withOpacity(.8)),
+                          label:Text(apiBase.replaceAll(RegExp(r'^https?://'),''),style:TextStyle(color:context.cMut,fontSize:10.5)),
                         )),
                         Center(child:TextButton.icon(
                           onPressed:busy?null:_checkConn,
                           style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),minimumSize:Size.zero),
-                          icon:Icon(Icons.wifi_tethering_rounded,size:14,color:muted.withOpacity(.8)),
-                          label:const Text('проверить связь',style:TextStyle(color:muted,fontSize:10.5)),
+                          icon:Icon(Icons.wifi_tethering_rounded,size:14,color:context.cMut.withOpacity(.8)),
+                          label:Text('проверить связь',style:TextStyle(color:context.cMut,fontSize:10.5)),
                         )),
                         const SizedBox(height:22),
                         Center(
@@ -583,7 +620,7 @@ class _AuthMode extends StatelessWidget{
       child:InkWell(
         onTap:onTap,
         borderRadius:BorderRadius.circular(15),
-        child:Center(child:Text(label,style:TextStyle(fontWeight:FontWeight.w900,fontSize:13,letterSpacing:.1,color:active?Colors.white:muted))),
+        child:Center(child:Text(label,style:TextStyle(fontWeight:FontWeight.w900,fontSize:13,letterSpacing:.1,color:active?Colors.white:context.cMut))),
       ),
     ),
   );
@@ -610,14 +647,14 @@ class _AuthFieldState extends State<_AuthField>{
       height:56,
       width:double.infinity,
       decoration:BoxDecoration(
-        color:dark?surface.withOpacity(.7):Colors.white,
+        color:dark?context.cSurf.withOpacity(.7):Colors.white,
         borderRadius:BorderRadius.circular(15),
-        border:Border.all(color:dark?stroke:Colors.black12),
+        border:Border.all(color:dark?context.cLine:Colors.black12),
       ),
       padding:const EdgeInsets.only(left:16),
       child:Row(
         children:[
-          Icon(widget.icon,color:dark?muted:Colors.black54,size:20),
+          Icon(widget.icon,color:dark?context.cMut:Colors.black54,size:20),
           const SizedBox(width:8),
           Expanded(
             child:Stack(
@@ -627,7 +664,7 @@ class _AuthFieldState extends State<_AuthField>{
                   valueListenable:widget.controller,
                   builder:(context,value,_){
                     if(value.text.isNotEmpty)return const SizedBox.shrink();
-                    return IgnorePointer(child:Text(widget.hint,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:16)));
+                    return IgnorePointer(child:Text(widget.hint,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:context.cMut,fontSize:16)));
                   },
                 ),
                 EditableText(
@@ -641,7 +678,7 @@ class _AuthFieldState extends State<_AuthField>{
                   minLines:1,
                   style:const TextStyle(fontWeight:FontWeight.w600,fontSize:16),
                   cursorColor:pink,
-                  backgroundCursorColor:muted,
+                  backgroundCursorColor:context.cMut,
                   selectionColor:pink.withOpacity(.25),
                 ),
               ],
@@ -795,7 +832,7 @@ class _ShellState extends State<Shell>{
             );
     return Scaffold(
       extendBody:true,
-      backgroundColor:bg,
+      backgroundColor:context.cBg,
       body:SafeArea(
         bottom:false,
         child:Stack(
@@ -834,9 +871,9 @@ class _ShellState extends State<Shell>{
           child:Container(
             height:66,
             decoration:BoxDecoration(
-              color:const Color(0xFF0C0C13).withOpacity(.88),
+              color:context.cSurf.withOpacity(.92),
               borderRadius:BorderRadius.circular(24),
-              border:Border.all(color:stroke.withOpacity(.9)),
+              border:Border.all(color:context.cLine.withOpacity(.9)),
               boxShadow:[BoxShadow(color:pink.withOpacity(.10),blurRadius:28,spreadRadius:-8,offset:const Offset(0,8))],
             ),
             child:Row(
@@ -874,9 +911,9 @@ class _NavItem extends StatelessWidget{
           child:Column(
             mainAxisAlignment:MainAxisAlignment.center,
             children:[
-              Icon(active?activeIcon:icon,size:21,color:active?Colors.white:muted),
+              Icon(active?activeIcon:icon,size:21,color:active?Colors.white:context.cMut),
               const SizedBox(height:3),
-              Text(label,style:TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:active?Colors.white:muted)),
+              Text(label,style:TextStyle(fontSize:10,fontWeight:FontWeight.w800,color:active?Colors.white:context.cMut)),
             ],
           ),
         ),
@@ -941,7 +978,7 @@ class _ChatsState extends State<Chats>{
     if(chip==3)filtered=filtered.where((x)=>x.isGroup).toList();
     final totalUnread=list.fold<int>(0,(sum,x)=>sum+x.unread);
     final chips=[s.filterAll,s.filterUnread,s.filterDirect,s.filterGroups];
-    return Container(color:bg,child:Stack(
+    return Container(color:context.cBg,child:Stack(
       children:[
         Positioned(top:-170,right:-120,child:_Glow(size:330,color:purple.withOpacity(.12))),
         Positioned(top:100,left:-180,child:_Glow(size:270,color:blue.withOpacity(.045))),
@@ -957,7 +994,7 @@ class _ChatsState extends State<Chats>{
                     children:[
                       const _VibeWordmark(fontSize:30),
                       const SizedBox(height:2),
-                      Text(s.chats.toLowerCase(),style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w700,letterSpacing:.7)),
+                      Text(s.chats.toLowerCase(),style:TextStyle(color:context.cMut,fontSize:11,fontWeight:FontWeight.w700,letterSpacing:.7)),
                     ],
                   ),
                   const Spacer(),
@@ -988,12 +1025,12 @@ class _ChatsState extends State<Chats>{
                       alignment:Alignment.center,
                       decoration:BoxDecoration(
                         gradient:active?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
-                        color:active?null:surface.withOpacity(.6),
+                        color:active?null:context.cSurf.withOpacity(.6),
                         borderRadius:BorderRadius.circular(13),
-                        border:Border.all(color:active?Colors.white.withOpacity(.12):stroke),
+                        border:Border.all(color:active?Colors.white.withOpacity(.12):context.cLine),
                         boxShadow:active?[BoxShadow(color:pink.withOpacity(.20),blurRadius:14,offset:const Offset(0,4))]:null,
                       ),
-                      child:Text(label,style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w800,color:active?Colors.white:muted)),
+                      child:Text(label,style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w800,color:active?Colors.white:context.cMut)),
                     ),
                   );
                 },
@@ -1044,9 +1081,9 @@ class _ChatSearchPageState extends State<ChatSearchPage>{
     final q=controller.text.trim().toLowerCase();
     final filtered=widget.list.where((x)=>x.name.toLowerCase().contains(q)||x.preview.toLowerCase().contains(q)).toList();
     return Scaffold(
-      backgroundColor:bg,
+      backgroundColor:context.cBg,
       appBar:AppBar(
-        backgroundColor:bg,
+        backgroundColor:context.cBg,
         titleSpacing:0,
         leading:IconButton(
           onPressed:()=>Navigator.pop(context),
@@ -1080,14 +1117,14 @@ class SearchBox extends StatelessWidget{
     return Container(
       height:48,
       decoration:BoxDecoration(
-        color:dark?surface.withOpacity(.65):Colors.white,
+        color:dark?context.cSurf.withOpacity(.65):Colors.white,
         borderRadius:BorderRadius.circular(15),
-        border:Border.all(color:dark?stroke:Colors.black12),
+        border:Border.all(color:dark?context.cLine:Colors.black12),
       ),
       padding:const EdgeInsets.only(left:14,right:8),
       child:Row(
         children:[
-          Icon(Icons.search_rounded,color:muted,size:21),
+          Icon(Icons.search_rounded,color:context.cMut,size:21),
           const SizedBox(width:9),
           Expanded(child:_BareField(controller:controller,hint:hint,onChanged:onChanged)),
         ],
@@ -1135,7 +1172,7 @@ class _BareFieldState extends State<_BareField>{
         children:[
           if(widget.icon!=null)Padding(
             padding:EdgeInsets.only(left:0,right:9,top:multi?14:0),
-            child:Icon(widget.icon,color:muted,size:21),
+            child:Icon(widget.icon,color:context.cMut,size:21),
           ),
           Expanded(
             child:Stack(
@@ -1148,7 +1185,7 @@ class _BareFieldState extends State<_BareField>{
                     return IgnorePointer(
                       child:Padding(
                         padding:EdgeInsets.only(top:multi?14:0),
-                        child:Text(widget.hint,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:15,fontWeight:FontWeight.w500)),
+                        child:Text(widget.hint,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:context.cMut,fontSize:15,fontWeight:FontWeight.w500)),
                       ),
                     );
                   },
@@ -1163,7 +1200,7 @@ class _BareFieldState extends State<_BareField>{
                   minLines:1,
                   style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
                   cursorColor:pink,
-                  backgroundCursorColor:muted,
+                  backgroundCursorColor:context.cMut,
                   selectionColor:pink.withOpacity(.25),
                   onChanged:widget.onChanged,
                 ),
@@ -1209,7 +1246,7 @@ class Tile extends StatelessWidget{
           padding:const EdgeInsets.symmetric(horizontal:6,vertical:11),
           decoration:BoxDecoration(
             borderRadius:BorderRadius.circular(22),
-            border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7)),
+            border:Border(bottom:BorderSide(color:context.cLine.withOpacity(.52),width:.7)),
           ),
           child:Row(
             children:[
@@ -1224,7 +1261,7 @@ class Tile extends StatelessWidget{
                     Builder(builder:(_){
                       // Приватность: скрытие текста сообщений в списке
                       final prev=gHidePreviews&&chat.preview.isNotEmpty?s.hiddenPreview:chat.preview;
-                      return Text(prev.isEmpty?s.active:prev,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13));
+                      return Text(prev.isEmpty?s.active:prev,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:context.cMut,fontSize:13));
                     }),
                   ],
                 ),
@@ -1234,7 +1271,7 @@ class Tile extends StatelessWidget{
                 mainAxisAlignment:MainAxisAlignment.center,
                 crossAxisAlignment:CrossAxisAlignment.end,
                 children:[
-                  if(chat.time.isNotEmpty)Text(chat.time,style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w700)),
+                  if(chat.time.isNotEmpty)Text(chat.time,style:TextStyle(color:context.cMut,fontSize:11,fontWeight:FontWeight.w700)),
                   const SizedBox(height:7),
                   if(chat.unread>0)
                     Container(
@@ -1312,10 +1349,19 @@ class _ChatState extends State<ChatPage>{
   bool loading=true,sending=false,peerTyping=false,peerOnline=false,peerRead=false;IO.Socket? socket;String myId='',peerId='';
   // Приватность собеседника (с сервера): что ему можно показывать, а что скрыто у него
   String peerAvatar='';bool peerHideOnline=false,peerHideTyping=false,peerHideReads=false;
+  // Защита от скриншотов по просьбе собеседника + запрет звонков у собеседника
+  bool peerNoShots=false,peerNoCalls=false;bool _shotsNotified=false;
   int effect=0;double fxIntensity=.55;Timer? typingTimer,typingClear;
 
   @override void initState(){super.initState();activeOpenChatId=widget.chat.id;load();restoreFx();Api.debugLog('chat open id=${widget.chat.id} name=${widget.chat.name}');}
-  @override void dispose(){if(activeOpenChatId==widget.chat.id)activeOpenChatId=null;socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();typingTimer?.cancel();typingClear?.cancel();super.dispose();}
+  @override void dispose(){
+    if(activeOpenChatId==widget.chat.id)activeOpenChatId=null;
+    // выходим из чата — возвращаем личную настройку запрета скриншотов
+    if(peerNoShots){
+      ()async{try{final p=await SharedPreferences.getInstance();await applySecureFlag(p.getBool('secure_mode')??false);}catch(_){}}();
+    }
+    socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();typingTimer?.cancel();typingClear?.cancel();super.dispose();
+  }
   Future<void> restoreFx()async{
     final p=await SharedPreferences.getInstance();
     if(!mounted)return;
@@ -1351,6 +1397,16 @@ class _ChatState extends State<ChatPage>{
         peerHideOnline=pr['show_online']==false;
         peerHideTyping=pr['show_typing']==false;
         peerHideReads=pr['show_reads']==false;
+        // приватность собеседника: в его чате скриншоты запрещены (защита его чатов)
+        peerNoShots=pr['block_screenshots']==true;
+        peerNoCalls=pr['allow_calls']==false;
+        if(peerNoShots){
+          applySecureFlag(true);
+          if(mounted&&!_shotsNotified){
+            _shotsNotified=true;
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).shotsByPeer)));
+          }
+        }
         if(peerId.isNotEmpty&&mounted)setState((){});
       }catch(_){}
     }catch(_){}
@@ -1504,8 +1560,8 @@ class _ChatState extends State<ChatPage>{
   @override Widget build(BuildContext context){
     final s=S(context);
     final dark=Theme.of(context).brightness==Brightness.dark;
-    final pageBg=dark?bg:const Color(0xFFF3F1FA);
-    final chatSurface=dark?surface:Colors.white;
+    final pageBg=dark?context.cBg:Color(0xFFF3F1FA);
+    final chatSurface=dark?context.cSurf:Colors.white;
     return Theme(
       data:Theme.of(context).copyWith(
         scaffoldBackgroundColor:pageBg,
@@ -1564,7 +1620,7 @@ class _ChatState extends State<ChatPage>{
                                       final typingOk=peerTyping&&!peerHideTyping;
                                       return Text(
                                         typingOk?s.typingNow:onlineOk?s.online:s.active,
-                                        style:TextStyle(color:typingOk?pink:onlineOk?purple:muted,fontSize:11,fontWeight:typingOk?FontWeight.w800:FontWeight.w600),
+                                        style:TextStyle(color:typingOk?pink:onlineOk?purple:context.cMut,fontSize:11,fontWeight:typingOk?FontWeight.w800:FontWeight.w600),
                                       );
                                     }),
                                   ],
@@ -1632,9 +1688,9 @@ class _ChatState extends State<ChatPage>{
             const SizedBox(width:8),
             Expanded(child:Container(
               decoration:BoxDecoration(
-                color:dark?surface2:Colors.white,
+                color:dark?context.cSurf2:Colors.white,
                 borderRadius:BorderRadius.circular(20),
-                border:Border.all(color:dark?stroke:Colors.black12),
+                border:Border.all(color:dark?context.cLine:Colors.black12),
               ),
               padding:const EdgeInsets.symmetric(horizontal:14,vertical:1),
               child:_BareField(controller:input,hint:s.messageHint,maxLines:5,onChanged:onInputChanged),
@@ -1672,11 +1728,11 @@ class _ChatState extends State<ChatPage>{
               Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
               if(username.isNotEmpty) ...[
                 const SizedBox(height:4),
-                Text('@'+username,style:const TextStyle(color:muted,fontSize:14)),
+                Text('@'+username,style:TextStyle(color:context.cMut,fontSize:14)),
               ],
               const SizedBox(height:15),
               if(widget.chat.isGroup)_GroupMembers(chatId:widget.chat.id),
-              ListTile(leading:const Icon(Icons.auto_awesome_rounded),title:Text(s.effects),subtitle:Text(s.intensity,style:const TextStyle(color:muted)),onTap:(){Navigator.pop(context);showEffects(context);}),
+              ListTile(leading:Icon(Icons.auto_awesome_rounded),title:Text(s.effects),subtitle:Text(s.intensity,style:TextStyle(color:context.cMut)),onTap:(){Navigator.pop(context);showEffects(context);}),
               ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
               ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
               ListTile(leading:const Icon(Icons.refresh_rounded),title:Text(s.refresh),onTap:(){Navigator.pop(context);setState(()=>loading=true);load();}),
@@ -1706,6 +1762,10 @@ class _ChatState extends State<ChatPage>{
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).groupOnlyCall)));
       return;
     }
+    if(peerNoCalls){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).callsBlockedByPeer)));
+      return;
+    }
     Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(call:CallStart(chatId:widget.chat.id,name:widget.chat.name,peerId:peerId,video:video))));
   }
 }
@@ -1726,8 +1786,8 @@ class _DateChip extends StatelessWidget{
       child:Container(
         margin:const EdgeInsets.only(bottom:12),
         padding:const EdgeInsets.symmetric(horizontal:13,vertical:5),
-        decoration:BoxDecoration(color:bg.withOpacity(.72),borderRadius:BorderRadius.circular(12),border:Border.all(color:stroke.withOpacity(.8))),
-        child:Text(txt,style:const TextStyle(color:muted,fontSize:11.5,fontWeight:FontWeight.w700)),
+        decoration:BoxDecoration(color:context.cBg.withOpacity(.72),borderRadius:BorderRadius.circular(12),border:Border.all(color:context.cLine.withOpacity(.8))),
+        child:Text(txt,style:TextStyle(color:context.cMut,fontSize:11.5,fontWeight:FontWeight.w700)),
       ),
     );
   }
@@ -1750,15 +1810,15 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
           final up=math.sin(phase*math.pi);
           return Transform.translate(
             offset:Offset(0,-3.2*up),
-            child:Container(width:7,height:7,decoration:BoxDecoration(shape:BoxShape.circle,color:(dark?muted:pink).withOpacity(.45+.5*up))),
+            child:Container(width:7,height:7,decoration:BoxDecoration(shape:BoxShape.circle,color:(dark?context.cMut:pink).withOpacity(.45+.5*up))),
           );
         }
         return Container(
           padding:const EdgeInsets.symmetric(horizontal:16,vertical:13),
           decoration:BoxDecoration(
-            color:dark?surface2:Colors.white,
+            color:dark?context.cSurf2:Colors.white,
             borderRadius:const BorderRadius.only(topLeft:Radius.circular(18),topRight:Radius.circular(18),bottomLeft:Radius.circular(5),bottomRight:Radius.circular(18)),
-            border:Border.all(color:dark?stroke:Colors.black12),
+            border:Border.all(color:dark?context.cLine:Colors.black12),
           ),
           child:Row(mainAxisSize:MainAxisSize.min,children:[dot(0),const SizedBox(width:5),dot(1),const SizedBox(width:5),dot(2)]),
         );
@@ -1826,12 +1886,12 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
     final msg=widget.msg;
     final s=S(context);
     final cs=Theme.of(context).colorScheme;
-    final incoming=dark?surface2:Colors.white;
+    final incoming=dark?context.cSurf2:Colors.white;
     final time=_fmtTime(msg.createdAt);
     Widget content;
     if(msg.type=='image'&&msg.mediaUrl.isNotEmpty){
       content=GestureDetector(onTap:_openMedia,onLongPress:_msgSheet,child:Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-        ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(width:230,height:230,color:surface,child:const Icon(Icons.broken_image_rounded,color:muted)))),
+        ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(width:230,height:230,color:context.cSurf,child:Icon(Icons.broken_image_rounded,color:context.cMut)))),
         const SizedBox(height:5),
         _MsgMeta(time:time,mine:msg.mine,dark:dark,read:widget.read),
       ]));
@@ -1850,7 +1910,7 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
         Icon(playing?Icons.pause_circle_rounded:Icons.play_circle_fill_rounded,color:msg.mine?Colors.white:pink,size:36),
         const SizedBox(width:8),
         Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          SizedBox(width:130,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:prog,minHeight:4,backgroundColor:msg.mine?Colors.white24:stroke,valueColor:AlwaysStoppedAnimation(msg.mine?Colors.white:pink)))),
+          SizedBox(width:130,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:prog,minHeight:4,backgroundColor:msg.mine?Colors.white24:context.cLine,valueColor:AlwaysStoppedAnimation(msg.mine?Colors.white:pink)))),
           const SizedBox(height:4),
           Text(playing||apos>Duration.zero?'${apos.inMinutes.remainder(60).toString().padLeft(2,'0')}:${apos.inSeconds.remainder(60).toString().padLeft(2,'0')}':s.voiceMessage,style:TextStyle(color:msg.mine?Colors.white70:cs.onSurface,fontSize:11.5)),
         ]),
@@ -1878,7 +1938,7 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
               gradient:msg.mine?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
               color:msg.mine?null:incoming,
               borderRadius:BorderRadius.only(topLeft:const Radius.circular(18),topRight:const Radius.circular(18),bottomLeft:Radius.circular(msg.mine?18:5),bottomRight:Radius.circular(msg.mine?5:18)),
-              border:msg.mine?null:Border.all(color:dark?stroke:Colors.black12),
+              border:msg.mine?null:Border.all(color:dark?context.cLine:Colors.black12),
               boxShadow:msg.mine?[BoxShadow(color:pink.withOpacity(.22),blurRadius:14,offset:const Offset(0,5))]:null,
             ),
             child:content,
@@ -1894,7 +1954,7 @@ class _MsgMeta extends StatelessWidget{
   const _MsgMeta({required this.time,required this.mine,required this.dark,this.read=false});
   @override Widget build(BuildContext context){
     return Row(mainAxisSize:MainAxisSize.min,children:[
-      Text(time,style:TextStyle(color:mine?Colors.white.withOpacity(.75):muted,fontSize:10.5,fontWeight:FontWeight.w700)),
+      Text(time,style:TextStyle(color:mine?Colors.white.withOpacity(.75):context.cMut,fontSize:10.5,fontWeight:FontWeight.w700)),
       if(mine) ...[
         const SizedBox(width:3),
         Icon(read?Icons.done_all_rounded:Icons.done_rounded,size:13,color:read?const Color(0xFF8FF7C1):Colors.white.withOpacity(.75)),
@@ -1933,11 +1993,11 @@ class _GroupMembersState extends State<_GroupMembers>{
         Expanded(child:searching
           ?const Center(child:CircularProgressIndicator(strokeWidth:2))
           :found.isEmpty
-            ?Center(child:Text(s.noPeople,style:const TextStyle(color:muted)))
+            ?Center(child:Text(s.noPeople,style:TextStyle(color:context.cMut)))
             :ListView.builder(itemCount:found.length,itemBuilder:(_,i)=>ListTile(
               leading:Avatar(name:found[i].name,size:40),
               title:Text(found[i].name),
-              subtitle:Text('@'+found[i].username,style:const TextStyle(color:muted,fontSize:12)),
+              subtitle:Text('@'+found[i].username,style:TextStyle(color:context.cMut,fontSize:12)),
               onTap:()async{
                 try{await Api.post('/chats/'+widget.chatId+'/members',{'userId':found[i].id});if(ctx.mounted)Navigator.pop(ctx);_load();if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.memberAdded)));}catch(_){}
               },
@@ -1948,7 +2008,7 @@ class _GroupMembersState extends State<_GroupMembers>{
   @override Widget build(BuildContext context){
     final s=S(context);
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Padding(padding:const EdgeInsets.only(bottom:4),child:Text(s.members+' · ${members.length}',style:const TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w800))),
+      Padding(padding:EdgeInsets.only(bottom:4),child:Text(s.members+' · ${members.length}',style:TextStyle(color:context.cMut,fontSize:12,fontWeight:FontWeight.w800))),
       if(loading)const Padding(padding:EdgeInsets.all(8),child:CircularProgressIndicator(strokeWidth:2)),
       ...members.take(12).map((m)=>Padding(padding:const EdgeInsets.symmetric(vertical:1),child:Row(children:[Avatar(name:m.name,size:34),const SizedBox(width:10),Expanded(child:Text(m.name,style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,overflow:TextOverflow.ellipsis)))]))),
       ListTile(leading:const Icon(Icons.person_add_alt_rounded),title:Text(s.addMember),onTap:_add,contentPadding:EdgeInsets.zero),
@@ -1964,23 +2024,23 @@ class _NotifyBanner extends StatelessWidget{
     final name=(data['fromName']??'?').toString();
     final body=(data['body']??'').toString();
     return Material(
-      color:surface,
+      color:context.cSurf,
       borderRadius:BorderRadius.circular(18),
       child:InkWell(
         onTap:onTap,
         borderRadius:BorderRadius.circular(18),
         child:Container(
           padding:const EdgeInsets.fromLTRB(10,10,6,10),
-          decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),border:Border.all(color:stroke)),
+          decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),border:Border.all(color:context.cLine)),
           child:Row(children:[
             Avatar(name:name,size:42),
             const SizedBox(width:11),
             Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Text(name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:14.5)),
               const SizedBox(height:2),
-              Text(body,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:12.5)),
+              Text(body,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:context.cMut,fontSize:12.5)),
             ])),
-            IconButton(icon:const Icon(Icons.close_rounded,size:18,color:muted),onPressed:onClose),
+            IconButton(icon:Icon(Icons.close_rounded,size:18,color:context.cMut),onPressed:onClose),
           ]),
         ),
       ),
@@ -2001,7 +2061,7 @@ class _EffectsSheetState extends State<_EffectsSheet>{
     final names=s.ru?const['сердце','звёзды','кибер','неон','пламя','градиент','пиксели','пузырьки','y2k']:const['heart','stars','cyber','neon','flame','gradient','pixels','bubbles','y2k'];
     const icons=[Icons.favorite_rounded,Icons.auto_awesome_rounded,Icons.developer_board_rounded,Icons.blur_on_rounded,Icons.local_fire_department_rounded,Icons.gradient_rounded,Icons.grid_view_rounded,Icons.bubble_chart_rounded,Icons.flare_rounded];
     return Container(
-      decoration:BoxDecoration(color:Theme.of(context).cardTheme.color,borderRadius:const BorderRadius.vertical(top:Radius.circular(28)),border:Border(top:BorderSide(color:stroke))),
+      decoration:BoxDecoration(color:Theme.of(context).cardTheme.color,borderRadius:BorderRadius.vertical(top:Radius.circular(28)),border:Border(top:BorderSide(color:context.cLine))),
       padding:const EdgeInsets.fromLTRB(18,6,18,24),
       child:SafeArea(
         top:false,
@@ -2035,17 +2095,17 @@ class _EffectsSheetState extends State<_EffectsSheet>{
                     child:AnimatedContainer(
                       duration:const Duration(milliseconds:160),
                       decoration:BoxDecoration(
-                        color:active?purple.withOpacity(.10):surface2.withOpacity(.6),
+                        color:active?purple.withOpacity(.10):context.cSurf2.withOpacity(.6),
                         borderRadius:BorderRadius.circular(18),
-                        border:Border.all(color:active?pink.withOpacity(.55):stroke),
+                        border:Border.all(color:active?pink.withOpacity(.55):context.cLine),
                         boxShadow:active?[BoxShadow(color:pink.withOpacity(.20),blurRadius:16,offset:const Offset(0,4))]:null,
                       ),
                       child:Column(
                         mainAxisAlignment:MainAxisAlignment.center,
                         children:[
-                          Icon(icons[i],size:28,color:active?pink:muted),
+                          Icon(icons[i],size:28,color:active?pink:context.cMut),
                           const SizedBox(height:7),
-                          Text(names[i],style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:active?Colors.white:muted)),
+                          Text(names[i],style:TextStyle(fontSize:11,fontWeight:FontWeight.w700,color:active?Colors.white:context.cMut)),
                         ],
                       ),
                     ),
@@ -2054,7 +2114,7 @@ class _EffectsSheetState extends State<_EffectsSheet>{
               }),
             ),
             const SizedBox(height:16),
-            Text(s.intensity,style:const TextStyle(color:muted,fontSize:11,fontWeight:FontWeight.w900,letterSpacing:1.1)),
+            Text(s.intensity,style:TextStyle(color:context.cMut,fontSize:11,fontWeight:FontWeight.w900,letterSpacing:1.1)),
             Slider(
               value:intensity,
               min:.1,max:1,
@@ -2245,7 +2305,7 @@ class _ContactsState extends State<Contacts>{
     final c=TextEditingController();
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
       title:Text(s.createGroup),
-      content:TextField(controller:c,autofocus:true,decoration:InputDecoration(hintText:s.groupName,filled:true,fillColor:bg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:stroke)),isDense:true)),
+      content:TextField(controller:c,autofocus:true,decoration:InputDecoration(hintText:s.groupName,filled:true,fillColor:context.cBg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:BorderSide(color:context.cLine)),isDense:true)),
       actions:[
         TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),
         FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(s.createGroup)),
@@ -2283,16 +2343,16 @@ class _ContactsState extends State<Contacts>{
               padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
               decoration:BoxDecoration(
                 borderRadius:BorderRadius.circular(22),
-                border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7)),
+                border:Border(bottom:BorderSide(color:context.cLine.withOpacity(.52),width:.7)),
               ),
               child:Row(children:[
                 Avatar(name:u.name,size:52,url:u.avatar),const SizedBox(width:12),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),
                   const SizedBox(height:3),
-                  Text('@'+u.username,style:const TextStyle(color:muted))
+                  Text('@'+u.username,style:TextStyle(color:context.cMut))
                 ])),
-                const Icon(Icons.arrow_forward_ios_rounded,size:15,color:muted),
+                Icon(Icons.arrow_forward_ios_rounded,size:15,color:context.cMut),
               ]),
             ),
           ),
@@ -2350,7 +2410,7 @@ class _CallsState extends State<Calls>{
                     onTap:chatId.isEmpty?null:()=>widget.onOpenChat(Chat(chatId,name,'',when)),
                     child:Container(
                       padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
-                      decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7))),
+                      decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),border:Border(bottom:BorderSide(color:context.cLine.withOpacity(.52),width:.7))),
                       child:Row(children:[
                         Avatar(name:name,size:52,url:pav),const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -2358,10 +2418,10 @@ class _CallsState extends State<Calls>{
                           const SizedBox(height:3),
                           Row(children:[
                             Icon(ic,size:14,color:mark),const SizedBox(width:4),
-                            Text(status=='ended'?'${(dur~/60).toString().padLeft(2,'0')}:${(dur%60).toString().padLeft(2,'0')}':(status=='missed'?s.missedCall:s.declined),style:const TextStyle(color:muted,fontSize:12.5)),
-                            if(video)...[const SizedBox(width:6),const Icon(Icons.videocam_rounded,size:13,color:muted)],
+                            Text(status=='ended'?'${(dur~/60).toString().padLeft(2,'0')}:${(dur%60).toString().padLeft(2,'0')}':(status=='missed'?s.missedCall:s.declined),style:TextStyle(color:context.cMut,fontSize:12.5)),
+                            if(video)...[SizedBox(width:6),Icon(Icons.videocam_rounded,size:13,color:context.cMut)],
                             const SizedBox(width:6),
-                            Text(when,style:const TextStyle(color:muted,fontSize:11)),
+                            Text(when,style:TextStyle(color:context.cMut,fontSize:11)),
                           ]),
                         ])),
                         IconButton(icon:const Icon(Icons.call_outlined,color:green),tooltip:s.voiceCall,onPressed:chatId.isEmpty?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(call:CallStart(chatId:chatId,name:name,video:false))))),
@@ -2398,89 +2458,151 @@ class Settings extends StatefulWidget{
   @override State<Settings> createState()=>_SettingsState();
 }
 class _SettingsState extends State<Settings>{
-  String avatar='';
+  String avatar='',email='';
+  bool meOnline=true,meTyping=true,meReads=true,meShots=false,meCalls=true,secureMode=false;
   @override void initState(){super.initState();_loadMe();}
   Future<void> _loadMe()async{
     try{
       final me=await Api.get('/me');
       if(!mounted)return;
-      // Сервер — источник правды по приватности: подтягиваем флаги
       final so=me['show_online'],st=me['show_typing'],sr=me['show_reads'];
       if(so is bool)gShowOnline=so;
       if(st is bool)gShowTyping=st;
       if(sr is bool)gShowReads=sr;
-      setState(()=>avatar=(me['avatar_url']??'').toString());
+      final p=await SharedPreferences.getInstance();
+      setState((){
+        avatar=(me['avatar_url']??'').toString();
+        email=(me['email']??'').toString();
+        meOnline=gShowOnline;meTyping=gShowTyping;meReads=gShowReads;
+        meShots=me['block_screenshots']==true;
+        meCalls=me['allow_calls']!=false;
+        secureMode=p.getBool('secure_mode')??false;
+      });
     }catch(_){}
   }
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  String _privacySub(AppStrings s)=>[
+    meOnline?s.privacyEveryone:s.privacyNobody,
+    s.ru?(meShots?'скриншоты чатов: защита':'скриншоты чатов: нет'):(meShots?'chat shots: on':'chat shots: off'),
+    s.ru?(meCalls?'звонки: все':'звонки: никто'):(meCalls?'calls: everyone':'calls: nobody'),
+  ].join(' · ');
+  String _securitySub(AppStrings s)=>[
+    gPinOn?(s.ru?'PIN включён':'PIN on'):(s.ru?'PIN выключен':'PIN off'),
+    secureMode?(s.ru?'скриншоты запрещены':'shots blocked'):(s.ru?'скриншоты разрешены':'shots allowed'),
+  ].join(' · ');
+
   @override Widget build(BuildContext context){
     final s=S(context);
     return ListView(
       keyboardDismissBehavior:ScrollViewKeyboardDismissBehavior.onDrag,
-      padding:const EdgeInsets.fromLTRB(18,16,18,110),
+      padding:const EdgeInsets.fromLTRB(18,14,18,110),
       children:[
-      const _VibeWordmark(fontSize:28),const SizedBox(height:18),
-      _SettingsItem(
-        onTap:_editProfile,
-        child:Padding(
-          padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
-          child:Row(children:[
-            Avatar(name:widget.name,size:62,url:avatar),const SizedBox(width:12),
-            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(widget.name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
-              const SizedBox(height:3),
-              Text('@'+widget.username,style:const TextStyle(color:muted))
-            ])),
-            const Icon(Icons.arrow_forward_ios_rounded,size:16,color:muted),
-          ]),
-        ),
-      ),
-      const SizedBox(height:6),
-      SwitchListTile(
-        contentPadding:const EdgeInsets.symmetric(horizontal:4),
-        value:widget.notifications,
-        onChanged:widget.onNotifications,
-        secondary:const Icon(Icons.notifications_none_rounded),
-        title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),
-        subtitle:Text(widget.notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
-      ),
-      section(context,s.appearance,[
-        Padding(
-          padding:const EdgeInsets.fromLTRB(4,4,4,10),
-          child:Row(children:[
-            Expanded(child:_ThemeCard(dark:true,selected:!widget.light,label:s.themeDark,onTap:()=>widget.onTheme(true))),
-            const SizedBox(width:10),
-            Expanded(child:_ThemeCard(dark:false,selected:widget.light,label:s.themeLight,onTap:()=>widget.onTheme(false))),
-          ]),
-        ),
-        ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(widget.language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context)),
-      ]),
-      section(context,s.privacy,[
-        ListTile(leading:const Icon(Icons.visibility_outlined),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>privacySheet()),
-      ]),
-      section(context,s.security,[
-        ListTile(leading:const Icon(Icons.shield_outlined),title:Text(s.security),subtitle:Text(s.securityRealSub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>securitySheet()),
-      ]),
-      section(context,s.about,[ListTile(leading:const Icon(Icons.info_outline_rounded),title:Text(s.about),subtitle:Text(s.version,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,'vibe<3',s.aboutBody))]),
-      const SizedBox(height:18),
-      OutlinedButton.icon(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded),label:Text(s.signOut),style:OutlinedButton.styleFrom(foregroundColor:pink,side:const BorderSide(color:pink),minimumSize:const Size.fromHeight(52),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)))),
-    ]);
-  }
-  Widget section(BuildContext c,String title,List<Widget> children)=>Padding(
-    padding:const EdgeInsets.only(top:14),
-    child:Column(
-      crossAxisAlignment:CrossAxisAlignment.start,
-      children:[
-        Padding(
-          padding:const EdgeInsets.only(left:4,bottom:7),
-          child:Text(title.toUpperCase(),style:const TextStyle(color:muted,fontSize:10,fontWeight:FontWeight.w900,letterSpacing:1.2)),
-        ),
+        const _VibeWordmark(fontSize:28),
+        const SizedBox(height:14),
+        // --- Шапка-профиль (как в Telegram: ведёт на страницу профиля) ---
         Material(
-          type:MaterialType.transparency,
-          child:Column(children:children),
+          color:context.cSurf,
+          borderRadius:BorderRadius.circular(24),
+          clipBehavior:Clip.antiAlias,
+          child:InkWell(
+            onTap:()async{await Navigator.push(context,MaterialPageRoute(builder:(_)=>ProfilePage(name:widget.name,username:widget.username,avatar:avatar,email:email,onProfile:widget.onProfile)));if(mounted)_loadMe();},
+            child:Padding(
+              padding:const EdgeInsets.all(13),
+              child:Row(children:[
+                Avatar(name:widget.name,size:64,url:avatar),
+                const SizedBox(width:14),
+                Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                  Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:17.5,fontWeight:FontWeight.w900)),
+                  const SizedBox(height:3),
+                  Text('@'+widget.username,style:TextStyle(color:context.cMut,fontSize:13)),
+                  const SizedBox(height:3),
+                  Text(s.profileTagline,style:const TextStyle(color:purple,fontSize:12,fontWeight:FontWeight.w700)),
+                ])),
+                Icon(Icons.arrow_forward_ios_rounded,size:16,color:context.cMut),
+              ]),
+            ),
+          ),
         ),
+        _VibeGroup(children:[
+          ListTile(
+            leading:_IconBadge(icon:Icons.notifications_none_rounded,color:pink),
+            title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(widget.notifications?s.notificationsOn:s.notificationsOff,style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Switch(value:widget.notifications,onChanged:widget.onNotifications),
+          ),
+        ]),
+        _VibeGroup(title:s.appearance,children:[
+          ListTile(
+            leading:_IconBadge(icon:Icons.dark_mode_outlined,color:purple),
+            title:Text(s.themePick,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(widget.light?s.themeLight:s.themeDark,style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Icon(Icons.chevron_right_rounded,color:context.cMut),
+            onTap:themeSheet,
+          ),
+          ListTile(
+            leading:_IconBadge(icon:Icons.translate_rounded,color:blue),
+            title:Text(s.language,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(widget.language=='ru'?s.russian:s.english,style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Icon(Icons.chevron_right_rounded,color:context.cMut),
+            onTap:()=>languagePicker(context),
+          ),
+        ]),
+        _VibeGroup(title:s.privacy,children:[
+          ListTile(
+            leading:_IconBadge(icon:Icons.visibility_outlined,color:green),
+            title:Text(s.privacy,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(_privacySub(s),style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Icon(Icons.chevron_right_rounded,color:context.cMut),
+            onTap:()async{
+              await Navigator.push(context,MaterialPageRoute(builder:(_)=>PrivacyPage(name:widget.name,username:widget.username)));
+              if(mounted)_loadMe();
+            },
+          ),
+        ]),
+        _VibeGroup(title:s.security,children:[
+          ListTile(
+            leading:_IconBadge(icon:Icons.shield_outlined,color:pink),
+            title:Text(s.security,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(_securitySub(s),style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Icon(Icons.chevron_right_rounded,color:context.cMut),
+            onTap:()async{
+              await Navigator.push(context,MaterialPageRoute(builder:(_)=>const SecurityPage()));
+              if(mounted)_loadMe();
+            },
+          ),
+        ]),
+        _VibeGroup(title:s.about,children:[
+          ListTile(
+            leading:_IconBadge(icon:Icons.info_outline_rounded,color:purple),
+            title:Text(s.about,style:const TextStyle(fontWeight:FontWeight.w700)),
+            subtitle:Text(s.version,style:TextStyle(color:context.cMut,fontSize:12)),
+            trailing:Icon(Icons.chevron_right_rounded,color:context.cMut),
+            onTap:()=>info(context,'vibe<3',s.aboutBody),
+          ),
+        ]),
+        const SizedBox(height:18),
+        OutlinedButton.icon(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded),label:Text(s.signOut),style:OutlinedButton.styleFrom(foregroundColor:pink,side:const BorderSide(color:pink),minimumSize:const Size.fromHeight(52),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)))),
       ],
-    ),
-  );
+    );
+  }
+  // ===== Выбор темы: тап по уже выбранной НИЧЕГО не делает, выбор применяется мгновенно =====
+  void themeSheet(){
+    final s=S(context);
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Padding(
+      padding:const EdgeInsets.fromLTRB(20,8,20,26),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(s.themePick,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+        const SizedBox(height:3),
+        Text(s.themeSystemHint,style:TextStyle(color:context.cMut,fontSize:12)),
+        const SizedBox(height:14),
+        Row(children:[
+          Expanded(child:_ThemeCard(dark:true,selected:!widget.light,label:s.themeDark,onTap:(!widget.light)?null:()=>widget.onTheme(false))),
+          const SizedBox(width:10),
+          Expanded(child:_ThemeCard(dark:false,selected:widget.light,label:s.themeLight,onTap:widget.light?null:()=>widget.onTheme(true))),
+        ]),
+      ]),
+    )));
+  }
   void languagePicker(BuildContext context){
     final s=S(context);
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
@@ -2490,96 +2612,347 @@ class _SettingsState extends State<Settings>{
       const SizedBox(height:12),
     ])));
   }
-  // ===== Редактор профиля: фото (камера/галерея/удалить) + имя/username, стиль vibe<3 =====
-  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
-  Future<void> _editProfile()async{
-    final s=S(context);
-    final n=TextEditingController(text:widget.name);final u=TextEditingController(text:widget.username);
-    String? pending; // null = не менял, '' = удалить фото, dataURL = новое фото
-    bool busy=false;
-    await showModalBottomSheet(
-      context:context,
-      isScrollControlled:true,
-      showDragHandle:true,
-      builder:(ctx)=>StatefulBuilder(builder:(ctx,setLocal)=>Padding(
-        padding:EdgeInsets.only(bottom:MediaQuery.of(ctx).viewInsets.bottom),
-        child:Padding(
-          padding:const EdgeInsets.fromLTRB(24,4,24,26),
-          child:Column(mainAxisSize:MainAxisSize.min,children:[
-            Text(s.editProfile,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
-            const SizedBox(height:16),
-            _AvatarPicker(name:widget.name,url:pending==null?avatar:pending,onTap:()async{
-              // Выбор источника фото
-              final src=await showModalBottomSheet<String>(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
-                ListTile(leading:const Icon(Icons.photo_camera_outlined),title:Text(s.cameraShot),onTap:()=>Navigator.pop(context,'camera')),
-                ListTile(leading:const Icon(Icons.photo_outlined),title:Text(s.fromGallery),onTap:()=>Navigator.pop(context,'gallery')),
-                if(((pending!=null&&pending!.isNotEmpty)||avatar.isNotEmpty)||pending=='')
-                  ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.removePhoto),onTap:()=>Navigator.pop(context,'remove')),
-              ])));
-              if(src==null)return;
-              if(src=='remove'){setLocal(()=>pending='');return;}
-              try{
-                final x=await ImagePicker().pickImage(source:src=='camera'?ImageSource.camera:ImageSource.gallery,maxWidth:512,maxHeight:512,imageQuality:82);
-                if(x==null)return;
-                final b=await x.readAsBytes();
-                final data='data:image/jpeg;base64,'+base64Encode(b);
-                if(data.length>500000){snack(s.photoTooBig);return;}
-                setLocal(()=>pending=data);
-              }catch(_){snack(s.mediaFailed);}
-            }),
-            const SizedBox(height:18),
-            _BareField(controller:n,hint:s.name),
-            const SizedBox(height:11),
-            Row(children:[const Text('@',style:TextStyle(color:muted,fontSize:16)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.username))]),
-            const SizedBox(height:7),
-            Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:const TextStyle(color:muted,fontSize:11))),
-            const SizedBox(height:18),
-            _GradientButton(height:54,radius:16,busy:busy,icon:Icons.check_rounded,label:s.save,onTap:()async{
-              FocusManager.instance.primaryFocus?.unfocus();
-              final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');
-              if(nn.length<2||!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(uu)){snack(s.profileCheck);return;}
-              setLocal(()=>busy=true);
-              try{
-                final resp=await widget.onProfile(nn,uu,pending);
-                if(mounted)setState(()=>avatar=(resp['avatar_url']??(pending==''?'':avatar)).toString());
-                if(ctx.mounted)Navigator.pop(ctx);
-                snack(s.saved);
-              }catch(e){
-                setLocal(()=>busy=false);
-                final x=e.toString();
-                snack(x.contains('username_taken')?s.usernameTaken:(x.contains('invalid_avatar')?s.photoTooBig:s.profileSaveError));
-              }
-            }),
-            const SizedBox(height:4),
-            TextButton(onPressed:busy?null:()=>Navigator.pop(ctx),child:Text(s.cancel)),
-          ]),
-        ),
-      )),
-    );
-    n.dispose();u.dispose();
+  void info(BuildContext context,String title,String body)=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(title),content:Text(body),actions:[FilledButton(onPressed:()=>Navigator.pop(context),child:Text(S(context).ok))]));
+}
+
+// ===== Страница профиля (как в Telegram): шапка-градиент, большой аватар, инфо, действия =====
+class ProfilePage extends StatefulWidget{
+  final String name,username,avatar,email;
+  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;
+  const ProfilePage({super.key,required this.name,required this.username,required this.avatar,required this.email,required this.onProfile});
+  @override State<ProfilePage> createState()=>_ProfilePageState();
+}
+class _ProfilePageState extends State<ProfilePage>{
+  late String name,username,avatar;String email='';
+  @override void initState(){super.initState();name=widget.name;username=widget.username;avatar=widget.avatar;_load();}
+  Future<void> _load()async{
+    try{
+      final me=await Api.get('/me');
+      if(!mounted)return;
+      setState((){
+        avatar=(me['avatar_url']??'').toString();
+        email=(me['email']??'').toString();
+      });
+    }catch(_){}
   }
-  // ===== Приватность: 4 живых тумблера, первые три применяются на сервере =====
-  Future<void> _putPrivacy(Map<String,dynamic> flags)async{
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  Future<void> _photoSheet()async{
+    final s=S(context);
+    final src=await showModalBottomSheet<String>(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
+      ListTile(leading:const Icon(Icons.photo_camera_outlined),title:Text(s.cameraShot),onTap:()=>Navigator.pop(context,'camera')),
+      ListTile(leading:const Icon(Icons.photo_outlined),title:Text(s.fromGallery),onTap:()=>Navigator.pop(context,'gallery')),
+      if(avatar.isNotEmpty)
+        ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.removePhoto),onTap:()=>Navigator.pop(context,'remove')),
+    ])));
+    if(src==null)return;
+    if(src=='remove'){
+      try{
+        await widget.onProfile(name,username,'');
+        if(mounted)setState(()=>avatar='');
+        snack(s.photoUpdated);
+      }catch(_){snack(s.mediaFailed);}
+      return;
+    }
+    try{
+      final x=await ImagePicker().pickImage(source:src=='camera'?ImageSource.camera:ImageSource.gallery,maxWidth:512,maxHeight:512,imageQuality:82);
+      if(x==null)return;
+      final b=await x.readAsBytes();
+      final data='data:image/jpeg;base64,'+base64Encode(b);
+      if(data.length>500000){snack(s.photoTooBig);return;}
+      final resp=await widget.onProfile(name,username,data);
+      if(mounted)setState(()=>avatar=(resp['avatar_url']??data).toString());
+      snack(s.photoUpdated);
+    }catch(_){if(mounted)snack(s.mediaFailed);}
+  }
+  Future<void> _openEditor()async{
+    final resp=await Navigator.push<Map>(context,MaterialPageRoute(builder:(_)=>EditProfilePage(name:name,username:username,avatar:avatar,onProfile:widget.onProfile)));
+    if(resp!=null){
+      setState((){
+        name=(resp['name']??name).toString();
+        username=(resp['username']??username).toString();
+        avatar=(resp['avatar_url']??avatar).toString();
+      });
+      _load();
+    }
+  }
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return Scaffold(
+      body:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        // --- градиентная шапка с аватаром ---
+        Stack(clipBehavior:Clip.none,children:[
+          Container(height:168,decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad))),
+          SafeArea(
+            child:SizedBox(
+              height:56,
+              child:Row(children:[
+                const SizedBox(width:6),
+                SizedBox(width:44,height:44,child:IconButton(tooltip:'Назад',onPressed:()=>Navigator.maybePop(context),icon:const Icon(Icons.arrow_back_rounded,color:Colors.white))),
+                const Spacer(),
+              ]),
+            ),
+          ),
+          Positioned(left:0,right:0,bottom:-58,child:Center(child:GestureDetector(
+            onTap:_photoSheet,
+            child:Stack(clipBehavior:Clip.none,children:[
+              Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:context.cBg,shape:BoxShape.circle),child:Avatar(name:name,size:112,url:avatar)),
+              Positioned(right:2,bottom:2,child:Container(
+                width:34,height:34,
+                decoration:BoxDecoration(gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad),shape:BoxShape.circle,border:Border.all(color:context.cBg,width:3)),
+                child:const Icon(Icons.photo_camera_rounded,size:15,color:Colors.white),
+              )),
+            ]),
+          ))),
+        ]),
+        const SizedBox(height:68),
+        Text(name,textAlign:TextAlign.center,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,letterSpacing:-.5)),
+        const SizedBox(height:4),
+        Text('@'+username,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:14)),
+        const SizedBox(height:6),
+        Text(s.profileTagline,textAlign:TextAlign.center,style:const TextStyle(color:purple,fontSize:12.5,fontWeight:FontWeight.w700)),
+        const SizedBox(height:22),
+        Padding(padding:const EdgeInsets.symmetric(horizontal:18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          _VibeGroup(children:[
+            ListTile(
+              leading:_IconBadge(icon:Icons.alternate_email_rounded,color:purple),
+              title:Text('@'+username,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.usernameLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+            ),
+            ListTile(
+              leading:_IconBadge(icon:Icons.mail_outline_rounded,color:blue),
+              title:Text(email.isEmpty?'—':email,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.emailLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+            ),
+          ]),
+          const SizedBox(height:6),
+          _GradientButton(height:52,radius:16,icon:Icons.edit_rounded,label:s.editProfile,busy:false,onTap:_openEditor),
+          const SizedBox(height:20),
+        ])),
+      ])),
+    );
+  }
+}
+
+// ===== Редактор профиля (полноэкранный, как в Telegram) =====
+class EditProfilePage extends StatefulWidget{
+  final String name,username,avatar;
+  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;
+  const EditProfilePage({super.key,required this.name,required this.username,required this.avatar,required this.onProfile});
+  @override State<EditProfilePage> createState()=>_EditProfilePageState();
+}
+class _EditProfilePageState extends State<EditProfilePage>{
+  late final TextEditingController n=TextEditingController(text:widget.name);
+  late final TextEditingController u=TextEditingController(text:widget.username);
+  String? pending; // null = не менял, '' = удалить фото, dataURL = новое фото
+  bool busy=false;
+  @override void dispose(){n.dispose();u.dispose();super.dispose();}
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  String get curAvatar=>pending==null?widget.avatar:pending!;
+  bool get hasPendingRemove=>pending!=null&&pending!.isEmpty;
+  Future<void> _pickPhoto()async{
+    final s=S(context);
+    final src=await showModalBottomSheet<String>(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
+      ListTile(leading:const Icon(Icons.photo_camera_outlined),title:Text(s.cameraShot),onTap:()=>Navigator.pop(context,'camera')),
+      ListTile(leading:const Icon(Icons.photo_outlined),title:Text(s.fromGallery),onTap:()=>Navigator.pop(context,'gallery')),
+      if(widget.avatar.isNotEmpty||hasPendingRemove||(pending!=null&&pending!.isNotEmpty))
+        ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.removePhoto),onTap:()=>Navigator.pop(context,'remove')),
+    ])));
+    if(src==null)return;
+    if(src=='remove'){setState(()=>pending='');return;}
+    try{
+      final x=await ImagePicker().pickImage(source:src=='camera'?ImageSource.camera:ImageSource.gallery,maxWidth:512,maxHeight:512,imageQuality:82);
+      if(x==null)return;
+      final b=await x.readAsBytes();
+      final data='data:image/jpeg;base64,'+base64Encode(b);
+      if(data.length>500000){snack(s.photoTooBig);return;}
+      setState(()=>pending=data);
+    }catch(_){snack(s.mediaFailed);}
+  }
+  Future<void> _save()async{
+    final s=S(context);
+    FocusManager.instance.primaryFocus?.unfocus();
+    final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');
+    if(nn.length<2||!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(uu)){snack(s.profileCheck);return;}
+    setState(()=>busy=true);
+    try{
+      final resp=await widget.onProfile(nn,uu,pending);
+      final out=Map<String,dynamic>.from(resp);
+      out['name']=nn;out['username']=uu;
+      if(mounted)Navigator.pop(context,out);
+    }catch(e){
+      setState(()=>busy=false);
+      final x=e.toString();
+      snack(x.contains('username_taken')?s.usernameTaken:(x.contains('invalid_avatar')?s.photoTooBig:s.profileSaveError));
+    }
+  }
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return Scaffold(
+      appBar:AppBar(
+        title:Text(s.editProfile,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+        centerTitle:false,
+      ),
+      body:ListView(
+        keyboardDismissBehavior:ScrollViewKeyboardDismissBehavior.onDrag,
+        padding:const EdgeInsets.fromLTRB(24,10,24,30),
+        children:[
+          const SizedBox(height:8),
+          Center(child:_AvatarPicker(name:n.text.isEmpty?widget.name:n.text,url:curAvatar,onTap:_pickPhoto)),
+          const SizedBox(height:26),
+          Text(s.name.toUpperCase(),style:TextStyle(color:context.cMut,fontSize:10.5,fontWeight:FontWeight.w900,letterSpacing:1.2)),
+          const SizedBox(height:6),
+          _BareField(controller:n,hint:s.nameHint),
+          const SizedBox(height:20),
+          Text(s.usernameLabel.toUpperCase(),style:TextStyle(color:context.cMut,fontSize:10.5,fontWeight:FontWeight.w900,letterSpacing:1.2)),
+          const SizedBox(height:6),
+          Row(children:[Text('@',style:TextStyle(color:context.cMut,fontSize:16,fontWeight:FontWeight.w700)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.usernameHint))]),
+          const SizedBox(height:7),
+          Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:TextStyle(color:context.cMut,fontSize:11))),
+          const SizedBox(height:26),
+          _GradientButton(height:54,radius:16,busy:busy,icon:Icons.check_rounded,label:s.saveChanges,onTap:_save),
+          const SizedBox(height:4),
+          TextButton(onPressed:busy?null:()=>Navigator.pop(context),child:Text(s.cancel)),
+        ],
+      ),
+    );
+  }
+}
+
+// ===== Приватность (полноэкранная, как в Telegram): живые тумблеры, всё на сервере =====
+class PrivacyPage extends StatefulWidget{
+  final String name,username;
+  const PrivacyPage({super.key,required this.name,required this.username});
+  @override State<PrivacyPage> createState()=>_PrivacyPageState();
+}
+class _PrivacyPageState extends State<PrivacyPage>{
+  bool loading=true,online=true,typing=true,reads=true,shots=false,calls=true,hidePrev=gHidePreviews;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load()async{
+    try{
+      final me=await Api.get('/me');
+      if(!mounted)return;
+      setState((){
+        online=me['show_online']!=false;
+        typing=me['show_typing']!=false;
+        reads=me['show_reads']!=false;
+        shots=me['block_screenshots']==true;
+        calls=me['allow_calls']!=false;
+        loading=false;
+        gShowOnline=online;gShowTyping=typing;gShowReads=reads;
+      });
+    }catch(_){if(mounted)setState(()=>loading=false);}
+  }
+  Future<void> _put(Map<String,dynamic> flags)async{
     try{await Api.put('/me',{'name':widget.name,'username':widget.username,...flags});}catch(_){}
   }
-  void privacySheet(){
+  @override Widget build(BuildContext context){
     final s=S(context);
-    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:StatefulBuilder(builder:(ctx,setSheet)=>Padding(
-      padding:const EdgeInsets.fromLTRB(20,8,20,24),
-      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(s.privacy,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
-        const SizedBox(height:4),
-        Text(s.privacyRealSub,style:const TextStyle(color:muted,fontSize:12)),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowOnline,secondary:const Icon(Icons.visibility_rounded),title:Text(s.showOnline),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_online',v);gShowOnline=v;setSheet(()=>{});_putPrivacy({'showOnline':v});}),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowTyping,secondary:const Icon(Icons.keyboard_rounded),title:Text(s.showTyping),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_typing',v);gShowTyping=v;setSheet(()=>{});_putPrivacy({'showTyping':v});}),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowReads,secondary:const Icon(Icons.done_all_rounded),title:Text(s.showReads),subtitle:Text(s.showReadsSub,style:const TextStyle(color:muted,fontSize:12)),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_reads',v);gShowReads=v;setSheet(()=>{});_putPrivacy({'showReads':v});}),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gHidePreviews,secondary:const Icon(Icons.hide_source_rounded),title:Text(s.hidePreviews),subtitle:Text(s.hidePreviewsSub,style:const TextStyle(color:muted,fontSize:12)),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('hide_previews',v);gHidePreviews=v;setSheet(()=>{});chatsChanged.value++;}),
-        const SizedBox(height:6),
-        Text(s.privacyBody,style:const TextStyle(color:muted,fontSize:12,height:1.45)),
-      ]),
-    ))));
+    return _SubScaffold(
+      title:s.privacy,
+      subtitle:s.privacyRealSub,
+      child:loading
+        ?const Center(child:CircularProgressIndicator())
+        :ListView(
+          padding:const EdgeInsets.fromLTRB(18,4,18,110),
+          children:[
+            _VibeGroup(title:s.privacySectionVisibility,children:[
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,12,16,4),
+                child:Text(s.privacyWhoOnline,style:const TextStyle(fontWeight:FontWeight.w700,fontSize:14.5)),
+              ),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,8,16,6),
+                child:Row(children:[
+                  Expanded(child:_ChoiceChip(label:s.privacyEveryone,active:online,onTap:(){setState(()=>online=true);gShowOnline=true;_put({'showOnline':true});})),
+                  const SizedBox(width:10),
+                  Expanded(child:_ChoiceChip(label:s.privacyNobody,active:!online,onTap:(){setState(()=>online=false);gShowOnline=false;_put({'showOnline':false});})),
+                ]),
+              ),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,0,16,12),
+                child:Text(s.privacyWhoOnlineSub,style:TextStyle(color:context.cMut,fontSize:11.5,height:1.35)),
+              ),
+              SwitchListTile(
+                contentPadding:const EdgeInsets.symmetric(horizontal:16),
+                secondary:_IconBadge(icon:Icons.keyboard_rounded,color:pink),
+                value:typing,
+                title:Text(s.showTyping,style:const TextStyle(fontWeight:FontWeight.w700)),
+                onChanged:(v){setState(()=>typing=v);gShowTyping=v;_put({'showTyping':v});},
+              ),
+              SwitchListTile(
+                contentPadding:const EdgeInsets.fromLTRB(16,0,16,8),
+                secondary:_IconBadge(icon:Icons.done_all_rounded,color:green),
+                value:reads,
+                title:Text(s.showReads,style:const TextStyle(fontWeight:FontWeight.w700)),
+                subtitle:Text(s.showReadsSub,style:TextStyle(color:context.cMut,fontSize:12)),
+                onChanged:(v){setState(()=>reads=v);gShowReads=v;_put({'showReads':v});},
+              ),
+            ]),
+            _VibeGroup(title:s.privacySectionChats,children:[
+              SwitchListTile(
+                contentPadding:const EdgeInsets.fromLTRB(16,8,16,4),
+                secondary:_IconBadge(icon:Icons.screenshot_monitor_outlined,color:purple),
+                value:shots,
+                title:Text(s.privacyShotsMine,style:const TextStyle(fontWeight:FontWeight.w700)),
+                subtitle:Text(s.privacyShotsMineSub,style:TextStyle(color:context.cMut,fontSize:12)),
+                onChanged:(v){setState(()=>shots=v);_put({'blockScreenshots':v});},
+              ),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,12,16,4),
+                child:Text(s.privacyWhoCalls,style:const TextStyle(fontWeight:FontWeight.w700,fontSize:14.5)),
+              ),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,8,16,6),
+                child:Row(children:[
+                  Expanded(child:_ChoiceChip(label:s.privacyEveryone,active:calls,onTap:(){setState(()=>calls=true);_put({'allowCalls':true});})),
+                  const SizedBox(width:10),
+                  Expanded(child:_ChoiceChip(label:s.privacyNobody,active:!calls,onTap:(){setState(()=>calls=false);_put({'allowCalls':false});})),
+                ]),
+              ),
+              Padding(
+                padding:const EdgeInsets.fromLTRB(16,0,16,12),
+                child:Text(s.privacyWhoCallsSub,style:TextStyle(color:context.cMut,fontSize:11.5,height:1.35)),
+              ),
+              SwitchListTile(
+                contentPadding:const EdgeInsets.fromLTRB(16,0,16,12),
+                secondary:_IconBadge(icon:Icons.hide_source_rounded,color:blue),
+                value:hidePrev,
+                title:Text(s.hidePreviews,style:const TextStyle(fontWeight:FontWeight.w700)),
+                subtitle:Text(s.hidePreviewsSub,style:TextStyle(color:context.cMut,fontSize:12)),
+                onChanged:(v)async{setState(()=>hidePrev=v);gHidePreviews=v;final p=await SharedPreferences.getInstance();await p.setBool('hide_previews',v);chatsChanged.value++;},
+              ),
+            ]),
+            const SizedBox(height:8),
+            Padding(
+              padding:const EdgeInsets.symmetric(horizontal:6),
+              child:Text(s.privacyBody,style:TextStyle(color:context.cMut,fontSize:12,height:1.45)),
+            ),
+          ],
+        ),
+    );
   }
-  // ===== Безопасность: PIN-код + блокировка в фоне + запрет скриншотов =====
+}
+
+// ===== Безопасность (полноэкранная): PIN + запрет скриншотов, тумблер срабатывает МГНОВЕННО =====
+class SecurityPage extends StatefulWidget{
+  const SecurityPage({super.key});
+  @override State<SecurityPage> createState()=>_SecurityPageState();
+}
+class _SecurityPageState extends State<SecurityPage>{
+  bool pinOn=false,pinBg=false,secure=false;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load()async{
+    final p=await SharedPreferences.getInstance();
+    if(!mounted)return;
+    setState((){
+      pinOn=p.getString('pin_hash')!=null;
+      gPinOn=pinOn;
+      pinBg=p.getBool('pin_bg')??false;
+      gPinBg=pinBg;
+      secure=p.getBool('secure_mode')??false;
+    });
+  }
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
   Future<String?> _askPin(String title)=>Navigator.push<String>(context,MaterialPageRoute(fullscreenDialog:true,builder:(_)=>_PinScreen(title:title,popOnSuccess:true,onEnter:(pin)async=>true)));
   Future<bool> _verifyPin(String pin)async{final p=await SharedPreferences.getInstance();return pinHash(pin)==(p.getString('pin_hash')??'');}
   Future<void> _setPin(String pin)async{final p=await SharedPreferences.getInstance();await p.setString('pin_hash',pinHash(pin));gPinOn=true;}
@@ -2595,7 +2968,7 @@ class _SettingsState extends State<Settings>{
       if(!await _verifyPin(old)){snack(s.pinWrong);return;}
       final p=await SharedPreferences.getInstance();await p.remove('pin_hash');gPinOn=false;
     }
-    if(mounted)setState(()=>{});
+    if(mounted)setState(()=>pinOn=gPinOn);
   }
   Future<void> _changePin()async{
     final s=S(context);
@@ -2605,62 +2978,138 @@ class _SettingsState extends State<Settings>{
     final p2=await _askPin(s.pinRepeat);if(p2==null)return;
     if(p1!=p2){snack(s.pinMismatch);return;}
     await _setPin(p1);
-    if(mounted)setState(()=>{});
+    if(mounted)setState(()=>pinOn=true);
   }
-  Future<void> securitySheet()async{
+  @override Widget build(BuildContext context){
     final s=S(context);
-    final p=await SharedPreferences.getInstance();
-    final secure=p.getBool('secure_mode')??false;
-    if(!mounted)return;
-    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:StatefulBuilder(builder:(ctx,setSheet)=>Padding(
-      padding:const EdgeInsets.fromLTRB(20,8,20,24),
-      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(s.security,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
-        const SizedBox(height:4),
-        Text(s.securityRealSub,style:const TextStyle(color:muted,fontSize:12)),
-        SwitchListTile(
-          contentPadding:EdgeInsets.zero,
-          value:gPinOn,
-          secondary:Icon(gPinOn?Icons.lock_rounded:Icons.lock_open_rounded,color:gPinOn?purple:null),
-          title:Text(s.pinLock,style:const TextStyle(fontWeight:FontWeight.w800)),
-          subtitle:Text(gPinOn?s.pinEnabled:s.pinDisabled,style:const TextStyle(color:muted)),
-          onChanged:(v)async{Navigator.pop(ctx);await _togglePin(v);},
-        ),
-        if(gPinOn)...[
-          SwitchListTile(
-            contentPadding:EdgeInsets.zero,
-            value:gPinBg,
-            secondary:const Icon(Icons.smartphone_rounded),
-            title:Text(s.pinBg),
-            subtitle:Text(s.pinBgSub,style:const TextStyle(color:muted,fontSize:12)),
-            onChanged:(v)async{final pp=await SharedPreferences.getInstance();await pp.setBool('pin_bg',v);gPinBg=v;setSheet(()=>{});},
-          ),
-          ListTile(
-            contentPadding:EdgeInsets.zero,
-            leading:const Icon(Icons.password_rounded),
-            title:Text(s.pinChange),
-            onTap:(){Navigator.pop(ctx);_changePin();},
+    return _SubScaffold(
+      title:s.security,
+      subtitle:s.securityRealSub,
+      child:ListView(
+        padding:const EdgeInsets.fromLTRB(18,4,18,110),
+        children:[
+          _VibeGroup(title:s.secSectionPin,children:[
+            SwitchListTile(
+              contentPadding:const EdgeInsets.fromLTRB(16,8,16,4),
+              secondary:_IconBadge(icon:pinOn?Icons.lock_rounded:Icons.lock_open_rounded,color:pinOn?green:context.cMut),
+              value:pinOn,
+              title:Text(s.pinLock,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.secPinSub,style:TextStyle(color:context.cMut,fontSize:12)),
+              onChanged:_togglePin,
+            ),
+            if(pinOn)...[
+              SwitchListTile(
+                contentPadding:const EdgeInsets.symmetric(horizontal:16),
+                secondary:_IconBadge(icon:Icons.smartphone_rounded,color:blue),
+                value:pinBg,
+                title:Text(s.pinBg,style:const TextStyle(fontWeight:FontWeight.w700)),
+                subtitle:Text(s.pinBgSub,style:TextStyle(color:context.cMut,fontSize:12)),
+                onChanged:(v)async{setState(()=>pinBg=v);gPinBg=v;final p=await SharedPreferences.getInstance();await p.setBool('pin_bg',v);},
+              ),
+              ListTile(
+                contentPadding:const EdgeInsets.fromLTRB(16,0,16,10),
+                leading:_IconBadge(icon:Icons.password_rounded,color:purple),
+                title:Text(s.pinChange,style:const TextStyle(fontWeight:FontWeight.w700)),
+                onTap:_changePin,
+              ),
+            ],
+          ]),
+          _VibeGroup(title:s.secSectionScreen,children:[
+            SwitchListTile(
+              contentPadding:const EdgeInsets.fromLTRB(16,8,16,10),
+              secondary:_IconBadge(icon:Icons.screenshot_monitor_outlined,color:pink),
+              value:secure,
+              title:Text(s.screenshots,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.secShotsSub2,style:TextStyle(color:context.cMut,fontSize:12)),
+              // Мгновенный отклик: сначала UI, затем сохранение и нативный FLAG_SECURE
+              onChanged:(v){
+                setState(()=>secure=v);
+                SharedPreferences.getInstance().then((p)=>p.setBool('secure_mode',v));
+                applySecureFlag(v);
+              },
+            ),
+          ]),
+          const SizedBox(height:8),
+          Padding(
+            padding:const EdgeInsets.symmetric(horizontal:6),
+            child:Text(s.securityNote,style:TextStyle(color:context.cMut,fontSize:12,height:1.45)),
           ),
         ],
-        SwitchListTile(
-          contentPadding:EdgeInsets.zero,
-          value:secure,
-          secondary:const Icon(Icons.screenshot_monitor_outlined),
-          title:Text(s.screenshots),
-          subtitle:Text(s.screenshotsSub,style:const TextStyle(color:muted,fontSize:12)),
-          onChanged:(v)async{final pp=await SharedPreferences.getInstance();await pp.setBool('secure_mode',v);await applySecureFlag(v);setSheet(()=>{});},
-        ),
-        const SizedBox(height:6),
-        Text(s.securityNote,style:const TextStyle(color:muted,fontSize:12,height:1.45)),
-      ]),
-    ))));
+      ),
+    );
   }
-  void info(BuildContext context,String title,String body)=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(title),content:Text(body),actions:[FilledButton(onPressed:()=>Navigator.pop(context),child:Text(S(context).ok))]));
+}
+
+// ===== Общие детали Telegram-стиля: подстраница, бейдж иконки, группа, чип выбора =====
+class _SubScaffold extends StatelessWidget{
+  final String title;final String? subtitle;final Widget child;
+  const _SubScaffold({required this.title,this.subtitle,required this.child});
+  @override Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(
+      titleSpacing:0,
+      title:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(title,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900)),
+        if(subtitle!=null)Text(subtitle!,style:TextStyle(color:context.cMut,fontSize:11,fontWeight:FontWeight.w600)),
+      ]),
+    ),
+    body:child,
+  );
+}
+class _IconBadge extends StatelessWidget{
+  final IconData icon;final Color color;
+  const _IconBadge({required this.icon,required this.color});
+  @override Widget build(BuildContext context)=>Container(width:36,height:36,decoration:BoxDecoration(color:color.withOpacity(.15),borderRadius:BorderRadius.circular(12)),child:Icon(icon,size:19,color:color));
+}
+class _VibeGroup extends StatelessWidget{
+  final String? title;final List<Widget> children;
+  const _VibeGroup({this.title,required this.children});
+  @override Widget build(BuildContext context){
+    final rows=<Widget>[];
+    for(int i=0;i<children.length;i++){
+      if(i>0)rows.add(Divider(height:1,indent:66,color:context.cLine.withOpacity(.45)));
+      rows.add(children[i]);
+    }
+    return Padding(
+      padding:const EdgeInsets.only(top:16),
+      child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        if(title!=null)Padding(padding:const EdgeInsets.only(left:16,bottom:7),child:Text(title!.toUpperCase(),style:TextStyle(color:context.cMut,fontSize:10.5,fontWeight:FontWeight.w900,letterSpacing:1.2))),
+        Material(color:context.cSurf,borderRadius:BorderRadius.circular(22),clipBehavior:Clip.antiAlias,child:Column(children:rows)),
+      ]),
+    );
+  }
+}
+class _ChoiceChip extends StatelessWidget{
+  final String label;final bool active;final VoidCallback onTap;
+  const _ChoiceChip({required this.label,required this.active,required this.onTap});
+  @override Widget build(BuildContext context)=>Material(
+    color:Colors.transparent,
+    child:InkWell(
+      onTap:onTap,
+      borderRadius:BorderRadius.circular(14),
+      child:AnimatedContainer(
+        duration:const Duration(milliseconds:180),
+        curve:Curves.easeOutCubic,
+        height:44,
+        alignment:Alignment.center,
+        decoration:BoxDecoration(
+          gradient:active?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
+          color:active?null:context.cSurf2.withOpacity(.55),
+          borderRadius:BorderRadius.circular(14),
+          border:Border.all(color:active?Colors.transparent:context.cLine),
+        ),
+        child:Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          if(active)const Icon(Icons.check_rounded,size:16,color:Colors.white),
+          if(active)const SizedBox(width:6),
+          Text(label,style:TextStyle(fontSize:13,fontWeight:FontWeight.w800,color:active?Colors.white:context.cMut)),
+        ]),
+      ),
+    ),
+  );
 }
 
 // ===== Карточка выбора темы (Оформление) =====
 class _ThemeCard extends StatelessWidget{
-  final bool dark,selected;final String label;final VoidCallback onTap;
+  final bool dark,selected;final String label;final VoidCallback? onTap;
   const _ThemeCard({required this.dark,required this.selected,required this.label,required this.onTap});
   @override Widget build(BuildContext context){
     return Material(
@@ -2676,7 +3125,7 @@ class _ThemeCard extends StatelessWidget{
             gradient:selected?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
             color:selected?null:Colors.transparent,
             borderRadius:BorderRadius.circular(20),
-            border:Border.all(color:selected?Colors.transparent:stroke),
+            border:Border.all(color:selected?Colors.transparent:context.cLine),
             boxShadow:selected?[BoxShadow(color:pink.withOpacity(.28),blurRadius:18,offset:const Offset(0,6))]:null,
           ),
           child:Container(
@@ -2697,7 +3146,7 @@ class _ThemeCard extends StatelessWidget{
               Container(height:8,decoration:BoxDecoration(gradient:const LinearGradient(colors:brandGrad),borderRadius:BorderRadius.circular(4))),
               const SizedBox(height:12),
               Row(children:[
-                if(selected)const Icon(Icons.check_circle_rounded,size:15,color:pink)else Icon(Icons.circle_outlined,size:14,color:dark?muted:Colors.black26),
+                if(selected)Icon(Icons.check_circle_rounded,size:15,color:pink)else Icon(Icons.circle_outlined,size:14,color:dark?context.cMut:Colors.black26),
                 const SizedBox(width:6),
                 Text(label,style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w800,color:dark?Colors.white:const Color(0xFF171522))),
               ]),
@@ -2801,7 +3250,7 @@ class _PinScreenState extends State<_PinScreen> with SingleTickerProviderStateMi
   @override Widget build(BuildContext context){
     final s=S(context);
     return Scaffold(
-      backgroundColor:bg,
+      backgroundColor:context.cBg,
       body:Stack(children:[
         const Positioned.fill(child:VibeAnimatedBackground()),
         SafeArea(child:Padding(
@@ -2814,10 +3263,10 @@ class _PinScreenState extends State<_PinScreen> with SingleTickerProviderStateMi
               animation:shake,
               builder:(_,child)=>Transform.translate(offset:Offset(math.sin(shake.value*math.pi*5)*(1-shake.value)*12,0),child:child),
               child:Column(children:[
-                Text(widget.title,textAlign:TextAlign.center,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:Colors.white)),
+                Text(widget.title,textAlign:TextAlign.center,style:TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:context.cTxt)),
                 if(widget.sub!=null)...[
                   const SizedBox(height:7),
-                  Text(widget.sub!,style:const TextStyle(color:muted,fontSize:13)),
+                  Text(widget.sub!,style:TextStyle(color:context.cMut,fontSize:13)),
                 ],
                 const SizedBox(height:22),
                 Row(
@@ -2828,7 +3277,7 @@ class _PinScreenState extends State<_PinScreen> with SingleTickerProviderStateMi
                     decoration:BoxDecoration(
                       shape:BoxShape.circle,
                       color:i<code.length?(error?pink:purple):Colors.transparent,
-                      border:error&&i>=code.length?Border.all(color:pink,width:1.6):Border.all(color:i<code.length?Colors.transparent:stroke,width:1.6),
+                      border:error&&i>=code.length?Border.all(color:pink,width:1.6):Border.all(color:i<code.length?Colors.transparent:context.cLine,width:1.6),
                     ),
                   )],
                 ),
@@ -2865,7 +3314,7 @@ class _PinScreenState extends State<_PinScreen> with SingleTickerProviderStateMi
 class _PinPad extends StatelessWidget{
   final ValueChanged<String> onDigit;final VoidCallback onBack;final bool busy;
   const _PinPad({required this.onDigit,required this.onBack,required this.busy});
-  Widget _key(String k)=>k.isEmpty
+  Widget _key(BuildContext c2,String k)=>k.isEmpty
     ?const SizedBox(width:76,height:64)
     :Padding(
       padding:const EdgeInsets.all(5),
@@ -2879,20 +3328,20 @@ class _PinPad extends StatelessWidget{
             width:66,height:56,
             alignment:Alignment.center,
             decoration:BoxDecoration(
-              color:surface.withOpacity(.72),
+              color:c2.cSurf.withOpacity(.72),
               borderRadius:BorderRadius.circular(18),
-              border:Border.all(color:stroke),
+              border:Border.all(color:c2.cLine),
             ),
             child:k=='back'
-              ?const Icon(Icons.backspace_outlined,size:21,color:muted)
-              :Text(k,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:Colors.white)),
+              ?Icon(Icons.backspace_outlined,size:21,color:c2.cMut)
+              :Text(k,style:TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:c2.cTxt)),
           ),
         ),
       ),
     );
   @override Widget build(BuildContext context)=>Column(mainAxisSize:MainAxisSize.min,children:[
     for(final row in const[['1','2','3'],['4','5','6'],['7','8','9'],['','0','back']])
-      Row(mainAxisAlignment:MainAxisAlignment.center,children:[for(final k in row)_key(k)]),
+      Row(mainAxisAlignment:MainAxisAlignment.center,children:[for(final k in row)_key(context,k)]),
   ]);
 }
 
@@ -2910,7 +3359,7 @@ class _VibeSplashState extends State<VibeSplash> with SingleTickerProviderStateM
   }
   @override void dispose(){controller.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Scaffold(
-    backgroundColor:bg,
+    backgroundColor:context.cBg,
     body:Stack(children:[
       const Positioned.fill(child:VibeAnimatedBackground()),
       Center(child:AnimatedBuilder(
@@ -2924,9 +3373,9 @@ class _VibeSplashState extends State<VibeSplash> with SingleTickerProviderStateM
               const SizedBox(height:20),
               const _VibeWordmark(fontSize:30),
               const SizedBox(height:6),
-              const Text('private. personal. yours.',style:TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w600)),
+              Text('private. personal. yours.',style:TextStyle(color:context.cMut,fontSize:12,fontWeight:FontWeight.w600)),
               const SizedBox(height:26),
-              SizedBox(width:92,height:3,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:reveal.value,minHeight:3,backgroundColor:stroke))),
+              SizedBox(width:92,height:3,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:reveal.value,minHeight:3,backgroundColor:context.cLine))),
             ]),
           ),
         ),
@@ -2987,7 +3436,7 @@ class EmptyState extends StatelessWidget{
   final IconData icon;final String title,sub;const EmptyState({super.key,required this.icon,required this.title,required this.sub});
   @override Widget build(BuildContext context)=>Center(child:Padding(padding:const EdgeInsets.all(30),child:Column(mainAxisSize:MainAxisSize.min,children:[
     Container(width:88,height:88,decoration:BoxDecoration(shape:BoxShape.circle,color:pink.withOpacity(.10),border:Border.all(color:pink.withOpacity(.20))),child:Icon(icon,size:42,color:pink)),
-    const SizedBox(height:18),Text(title,textAlign:TextAlign.center,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:7),Text(sub,textAlign:TextAlign.center,style:const TextStyle(color:muted,fontSize:13,height:1.45)),
+    SizedBox(height:18),Text(title,textAlign:TextAlign.center,style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),SizedBox(height:7),Text(sub,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:13,height:1.45)),
   ])));
 }
 
@@ -3024,9 +3473,9 @@ class _SquareAction extends StatelessWidget{
           width:size,height:size,
           decoration:BoxDecoration(
             gradient:gradient?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
-            color:gradient?null:(dark?surface2:const Color(0xFFECEAF2)),
+            color:gradient?null:(dark?context.cSurf2:Color(0xFFECEAF2)),
             borderRadius:BorderRadius.circular(size*.36),
-            border:gradient?Border.all(color:Colors.white.withOpacity(.12)):Border.all(color:dark?stroke:Colors.black12),
+            border:gradient?Border.all(color:Colors.white.withOpacity(.12)):Border.all(color:dark?context.cLine:Colors.black12),
             boxShadow:gradient?[BoxShadow(color:pink.withOpacity(.30),blurRadius:16,offset:const Offset(0,5))]:null,
           ),
           child:Center(

@@ -49,6 +49,8 @@ class _CallPageState extends State<CallPage>{
   final localRenderer=RTCVideoRenderer();final remoteRenderer=RTCVideoRenderer();
   IO.Socket? sock;
   String state='ringing';String peerId='';bool micOn=true,speakerOn=true;
+  // ICE-кандидаты могут прийти раньше, чем создан pc (гонка при приёме звонка) — копим и применяем после
+  final List<RTCIceCandidate> iceQueue=[];
   int seconds=0;Timer? ticker,timeout;
   bool get outgoing=>widget.incomingOffer==null;
 
@@ -83,6 +85,9 @@ class _CallPageState extends State<CallPage>{
       };
       sock=await CallKit.socket();
       sock!.on('call:answer',_onAnswer);sock!.on('call:ice',_onIce);sock!.on('call:end',_onEnd);
+      // применяем кандидаты, пришедшие до готовности pc
+      for(final c in iceQueue){try{await pc!.addCandidate(c);}catch(_){}}
+      iceQueue.clear();
       peerId=widget.call.peerId;
       if(peerId.isEmpty){try{final pr=await Api.get('/chats/'+widget.call.chatId+'/peer');peerId=(pr['id']??'').toString();}catch(_){}}
       if(peerId.isEmpty){_fail(s.callFailed);return;}
@@ -106,18 +111,21 @@ class _CallPageState extends State<CallPage>{
   }
 
   void _onAnswer(d){
-    if(state!='ringing'||d is! Map)return;
+    if(pc==null||state!='ringing'||d is! Map)return;
     timeout?.cancel();
     final a=d['answer'];
     if(a is Map&&a['sdp']!=null){
-      pc!.setRemoteDescription(RTCSessionDescription(a['sdp'].toString(),a['type'].toString()=='answer'?'answer':a['type'].toString()));
+      pc?.setRemoteDescription(RTCSessionDescription(a['sdp'].toString(),a['type'].toString()=='answer'?'answer':a['type'].toString()));
       if(mounted)setState(()=>state='connecting');
     }
   }
   void _onIce(d){
     if(d is! Map||d['candidate'] is! Map)return;
     final c=d['candidate'];
-    try{pc!.addCandidate(RTCIceCandidate(c['candidate']?.toString(),c['sdpMid']?.toString(),c['sdpMLineIndex'] is int?c['sdpMLineIndex'] as int:int.tryParse('${c['sdpMLineIndex']}')??0));}catch(_){}
+    RTCIceCandidate cand;
+    try{cand=RTCIceCandidate(c['candidate']?.toString(),c['sdpMid']?.toString(),c['sdpMLineIndex'] is int?c['sdpMLineIndex'] as int:int.tryParse('${c['sdpMLineIndex']}')??0);}catch(_){return;}
+    if(pc==null){iceQueue.add(cand);return;} // pc ещё не готов — не падаем, применяем позже
+    try{pc!.addCandidate(cand);}catch(_){}
   }
   void _onEnd(d){
     if(d is! Map)return;
@@ -145,6 +153,7 @@ class _CallPageState extends State<CallPage>{
   void _cleanup(){
     timeout?.cancel();ticker?.cancel();
     try{sock?.off('call:answer',_onAnswer);sock?.off('call:ice',_onIce);sock?.off('call:end',_onEnd);}catch(_){}
+    iceQueue.clear();
     try{pc?.close();}catch(_){}pc=null;
     try{localStream?.dispose();}catch(_){}localStream=null;
     try{localRenderer.dispose();}catch(_){}
@@ -153,7 +162,7 @@ class _CallPageState extends State<CallPage>{
   }
   void _toggleMic(){final on=!micOn;localStream?.getAudioTracks().forEach((t)=>t.enabled=on);if(mounted)setState(()=>micOn=on);}
   void _toggleSpeaker(){final on=!speakerOn;try{Helper.setSpeakerphoneOn(on);}catch(_){}if(mounted)setState(()=>speakerOn=on);}
-  void _toggleCam(){final tracks=localStream?.getVideoTracks()??const<MediaStreamTrack>[];final on=!tracks.first.enabled;for(final t in tracks){t.enabled=on;}if(mounted)setState(()=>{});}
+  void _toggleCam(){final tracks=localStream?.getVideoTracks()??const<MediaStreamTrack>[];if(tracks.isEmpty)return;final on=!tracks.first.enabled;for(final t in tracks){t.enabled=on;}if(mounted)setState(()=>{});}
 
   String get clock=>'${(seconds~/60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
   String _statusText(AppStrings s){
