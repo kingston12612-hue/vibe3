@@ -25,7 +25,13 @@ const brandGrad=[pink,purple];
 // версия списка чатов (reload при удалении чужим участником), живые тумблеры приватности
 String? activeOpenChatId;
 final chatsChanged=ValueNotifier<int>(0);
-bool gShowOnline=true,gShowTyping=true;
+bool gShowOnline=true,gShowTyping=true,gShowReads=true,gHidePreviews=false;
+bool gPinOn=false,gPinBg=false;
+
+// --- Безопасность: запрет скриншотов (FLAG_SECURE) + хэш PIN-кода ---
+const _secureCh=MethodChannel('vibe.secure');
+Future<void> applySecureFlag(bool on)async{try{await _secureCh.invokeMethod('setSecure',{'on':on});}catch(_){}}
+String pinHash(String pin){int h=0xcbf29ce484222325;for(final c in ('vibe<3|'+pin).codeUnits){h=(h^c)&0xFFFFFFFFFFFFFFFF;h=(h*0x100000001b3)&0xFFFFFFFFFFFFFFFF;}return h.toRadixString(16);}
 
 Future<void> main()async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,8 +43,9 @@ Future<void> main()async{
     final p=await SharedPreferences.getInstance();
     final u=p.getString('server_url');
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
+    if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.0.8 api=$apiBase');
+  Api.debugLog('app start v1.1.1 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -47,7 +54,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
- static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.1.0'})).timeout(const Duration(seconds:5));}catch(_){}}
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.1.1'})).timeout(const Duration(seconds:5));}catch(_){}}
  // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
  static Future<void> _ensureAwake()async{
   for(int i=0;i<8;i++){
@@ -119,7 +126,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.1.0';
+  String get version=>'v1.1.1';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -192,7 +199,44 @@ class AppStrings {
   String get memberAdded=>ru?'Участник добавлен':'Member added';
   String get showOnline=>ru?'Показывать «в сети»':'Show online status';
   String get showTyping=>ru?'Показывать «печатает...»':'Show typing indicator';
-  String get privacyRealSub=>ru?'Эти настройки работают сразу':'These settings apply instantly';
+  String get privacyRealSub=>ru?'Настройки применяются мгновенно и на сервере':'Applies instantly, on the server too';
+  String get showReads=>ru?'Отправлять отчёты о прочтении':'Send read receipts';
+  String get showReadsSub=>ru?'Собеседник видит галочки прочтения':'Peer sees your read ticks';
+  String get hidePreviews=>ru?'Скрывать текст в списке чатов':'Hide message previews';
+  String get hidePreviewsSub=>ru?'Вместо текста — «Текст скрыт»':'Previews are replaced';
+  String get hiddenPreview=>ru?'Текст скрыт':'Hidden';
+  String get appearance=>ru?'Оформление':'Appearance';
+  String get themeDark=>ru?'Тёмная':'Dark';
+  String get themeLight=>ru?'Светлая':'Light';
+  String get themeSub=>ru?'Выбери тему интерфейса':'Pick interface theme';
+  String get photoProfile=>ru?'Фото профиля':'Profile photo';
+  String get cameraShot=>ru?'Сделать фото':'Take a photo';
+  String get fromGallery=>ru?'Выбрать из галереи':'Choose from gallery';
+  String get removePhoto=>ru?'Удалить фото':'Remove photo';
+  String get photoUpdated=>ru?'Фото профиля обновлено':'Profile photo updated';
+  String get saved=>ru?'Сохранено':'Saved';
+  String get pinLock=>ru?'PIN-код на приложение':'App PIN code';
+  String get pinEnabled=>ru?'Включён':'Enabled';
+  String get pinDisabled=>ru?'Выключен':'Disabled';
+  String get pinEnable=>ru?'Включить PIN-код':'Enable PIN';
+  String get pinChange=>ru?'Изменить PIN':'Change PIN';
+  String get pinDisable=>ru?'Выключить PIN-код':'Disable PIN';
+  String get pinCreate=>ru?'Придумай PIN-код':'Create a PIN';
+  String get pinRepeat=>ru?'Повтори PIN-код':'Repeat the PIN';
+  String get pinEnter=>ru?'Введи текущий PIN':'Enter current PIN';
+  String get pinUnlock=>ru?'Введи PIN-код':'Enter your PIN';
+  String get pinWrong=>ru?'Неверный PIN':'Wrong PIN';
+  String get pinMismatch=>ru?'PIN-коды не совпадают':'PINs do not match';
+  String get pinBg=>ru?'Блокировать при сворачивании':'Lock when minimized';
+  String get pinBgSub=>ru?'Экран PIN при возврате в приложение':'PIN screen on return';
+  String get pinSignOut=>ru?'Выйти из аккаунта':'Sign out';
+  String get pinSignOutQ=>ru?'Выйти и сбросить вход?':'Sign out of this account?';
+  String get lockedTitle=>ru?'Приложение заблокировано':'App locked';
+  String get screenshots=>ru?'Запрет скриншотов':'Block screenshots';
+  String get screenshotsSub=>ru?'Скрывает содержимое в меню недавних приложений':'Hides content in the recents screen';
+  String get securityRealSub=>ru?'PIN-код и защита экрана':'PIN code and screen shield';
+  String get securityNote=>ru?'Вход защищён серверной JWT-сессией. PIN-код и запрет скриншотов защищают приложение на самом телефоне.':'Login is protected by a server-side JWT session. The PIN and screenshot shield protect the app on this device.';
+  String get photoTooBig=>ru?'Фото слишком большое, попробуй другое':'Photo is too large, try another one';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -226,13 +270,19 @@ ThemeData vibeTheme(bool dark){
 }
 
 class VibeApp extends StatefulWidget{const VibeApp({super.key});@override State<VibeApp> createState()=>_VibeState();}
-class _VibeState extends State<VibeApp>{
-  bool ready=false,logged=false,light=false,notifications=true;
+class _VibeState extends State<VibeApp> with WidgetsBindingObserver{
+  bool ready=false,logged=false,light=false,notifications=true,locked=false;
   String language='en',name='Alex',email='',username='';
-  @override void initState(){super.initState();load();}
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);load();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);super.dispose();}
+  @override void didChangeAppLifecycleState(AppLifecycleState st){
+    // Безопасность: PIN при возврате из фона (если включено)
+    if(st==AppLifecycleState.paused&&gPinOn&&gPinBg&&logged&&!locked&&mounted)setState(()=>locked=true);
+  }
   Future<void> load()async{
     final p=await SharedPreferences.getInstance();
     final systemLang=WidgetsBinding.instance.platformDispatcher.locale.languageCode=='ru'?'ru':'en';
+    final pinOn=p.getString('pin_hash')!=null;
     setState((){
       language=p.getString('language')??systemLang;
       light=p.getBool('light')??false;
@@ -243,6 +293,11 @@ class _VibeState extends State<VibeApp>{
       logged=p.getString('token')!=null;
       gShowOnline=p.getBool('show_online')??true;
       gShowTyping=p.getBool('show_typing')??true;
+      gShowReads=p.getBool('show_reads')??true;
+      gHidePreviews=p.getBool('hide_previews')??false;
+      gPinOn=pinOn;
+      gPinBg=p.getBool('pin_bg')??false;
+      locked=pinOn; // при старте приложение всегда под PIN
       ready=true;
     });
   }
@@ -256,16 +311,25 @@ class _VibeState extends State<VibeApp>{
   Future<void> setTheme(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('light',v);setState(()=>light=v);}
   Future<void> setLanguage(String v)async{final p=await SharedPreferences.getInstance();await p.setString('language',v);setState(()=>language=v);}
   Future<void> setNotifications(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('notifications',v);setState(()=>notifications=v);}
-  Future<void> updateProfile(String n,String u)async{
-    final d=await Api.put('/me',{'name':n,'username':u});
+  Future<Map<String,dynamic>> updateProfile(String n,String u,String? avatar)async{
+    final d=await Api.put('/me',{'name':n,'username':u,if(avatar!=null)'avatar':avatar});
     final p=await SharedPreferences.getInstance();
     final nn=(d['display_name']??n).toString();final uu=(d['username']??u).toString();
     await p.setString('name',nn);await p.setString('username',uu);
     setState((){name=nn;username=uu;});
+    return Map<String,dynamic>.from(d as Map);
   }
   Future<void> logout()async{final p=await SharedPreferences.getInstance();await p.remove('token');setState(()=>logged=false);}
   @override Widget build(BuildContext context){
     if(!ready)return MaterialApp(debugShowCheckedModeBanner:false,theme:vibeTheme(true),home:const VibeSplash());
+    if(logged&&gPinOn&&locked){
+      // Безопасность: экран блокировки вместо всего приложения
+      return MaterialApp(
+        debugShowCheckedModeBanner:false,title:'vibe<3',locale:Locale(language),supportedLocales:const[Locale('en'),Locale('ru')],localizationsDelegates:const[GlobalMaterialLocalizations.delegate,GlobalWidgetsLocalizations.delegate,GlobalCupertinoLocalizations.delegate],
+        themeMode:light?ThemeMode.light:ThemeMode.dark,theme:vibeTheme(false),darkTheme:vibeTheme(true),
+        home:LockScreen(onUnlock:(){if(mounted)setState(()=>locked=false);},onSignOut:logout),
+      );
+    }
     return MaterialApp(debugShowCheckedModeBanner:false,title:'vibe<3',locale:Locale(language),supportedLocales:const[Locale('en'),Locale('ru')],localizationsDelegates:const[GlobalMaterialLocalizations.delegate,GlobalWidgetsLocalizations.delegate,GlobalCupertinoLocalizations.delegate],themeMode:light?ThemeMode.light:ThemeMode.dark,theme:vibeTheme(false),darkTheme:vibeTheme(true),home:logged?Shell(name:name,username:username,light:light,language:language,notifications:notifications,onTheme:setTheme,onLanguage:setLanguage,onNotifications:setNotifications,onProfile:updateProfile,onLogout:logout):AuthScreen(onLogin:saveUser));
   }
 }
@@ -649,13 +713,13 @@ String friendlyError(Object ex,AppStrings s){
 }
 String ru429(AppStrings s)=>s.connectionError+' · слишком много попыток, подожди минуту';
 
-class Chat{final String id;String name,preview,time;bool online,isGroup;int unread;DateTime? lastAt;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0,this.isGroup=false,this.lastAt});}
-class UserX{final String id,name,username;UserX(this.id,this.name,this.username);}
+class Chat{final String id;String name,preview,time;bool online,isGroup;int unread;DateTime? lastAt;String peerAvatar,peerId;Chat(this.id,this.name,this.preview,this.time,{this.online=false,this.unread=0,this.isGroup=false,this.lastAt,this.peerAvatar='',this.peerId=''});}
+class UserX{final String id,name,username,avatar;UserX(this.id,this.name,this.username,{this.avatar=''});}
 class Msg{final String id,text,sender,type,mediaUrl;final bool mine;final DateTime createdAt;Msg(this.id,this.text,this.sender,this.mine,{this.type='text',this.mediaUrl='',DateTime? createdAt}):createdAt=createdAt??DateTime.now();}
 class Shell extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
   final ValueChanged<bool> onTheme,onNotifications;final ValueChanged<String> onLanguage;
-  final Future<void> Function(String,String) onProfile;final VoidCallback onLogout;
+  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;final VoidCallback onLogout;
   const Shell({super.key,required this.name,required this.username,required this.light,required this.language,required this.notifications,required this.onTheme,required this.onLanguage,required this.onNotifications,required this.onProfile,required this.onLogout});
   @override State<Shell> createState()=>_ShellState();
 }
@@ -844,6 +908,8 @@ class _ChatsState extends State<Chats>{
           unread:int.tryParse((x['unread']??0).toString())??0,
           isGroup:(x['is_group']??false)==true,
           lastAt:DateTime.tryParse(lastRaw)?.toLocal(),
+          peerAvatar:(x['peer_avatar']??'').toString(),
+          peerId:(x['peer_id']??'').toString(),
         );
       }).toList();
       error=null;
@@ -1147,7 +1213,7 @@ class Tile extends StatelessWidget{
           ),
           child:Row(
             children:[
-              Avatar(name:chat.name,size:54),
+              Avatar(name:chat.name,size:54,url:chat.peerAvatar),
               const SizedBox(width:12),
               Expanded(
                 child:Column(
@@ -1155,7 +1221,11 @@ class Tile extends StatelessWidget{
                   children:[
                     Text(chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15.5,fontWeight:FontWeight.w800)),
                     const SizedBox(height:4),
-                    Text(chat.preview.isEmpty?s.active:chat.preview,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13)),
+                    Builder(builder:(_){
+                      // Приватность: скрытие текста сообщений в списке
+                      final prev=gHidePreviews&&chat.preview.isNotEmpty?s.hiddenPreview:chat.preview;
+                      return Text(prev.isEmpty?s.active:prev,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:13));
+                    }),
                   ],
                 ),
               ),
@@ -1192,9 +1262,34 @@ class Tile extends StatelessWidget{
 }
 
 class Avatar extends StatelessWidget{
-  final String name;final double size;
-  const Avatar({super.key,required this.name,this.size=46});
+  final String name;final double size;final String? url;
+  const Avatar({super.key,required this.name,this.size=46,this.url});
+  // Кэш декодированных аватарок (data URL -> байты), чтобы не декодировать на каждый кадр
+  static final Map<String,Uint8List> _mem={};
+  static Uint8List? bytes(String? url){
+    if(url==null||url.isEmpty||!url.startsWith('data:image'))return null;
+    final hit=_mem[url];if(hit!=null)return hit;
+    try{
+      final i=url.indexOf('base64,');
+      if(i<0)return null;
+      final b=base64Decode(url.substring(i+7));
+      if(b.isNotEmpty){if(_mem.length>60)_mem.clear();_mem[url]=b;return b;}
+    }catch(_){}
+    return null;
+  }
   @override Widget build(BuildContext context){
+    final img=bytes(url);
+    if(img!=null){
+      return Container(
+        width:size,height:size,
+        decoration:BoxDecoration(
+          borderRadius:BorderRadius.circular(size*.32),
+          border:Border.all(color:Colors.white.withOpacity(.16),width:1),
+          boxShadow:[BoxShadow(color:pink.withOpacity(.24),blurRadius:16,spreadRadius:-2)],
+        ),
+        child:ClipRRect(borderRadius:BorderRadius.circular(size*.32-(size>60?1.2:.8)),child:Image.memory(img,fit:BoxFit.cover,gaplessPlayback:true)),
+      );
+    }
     const colors=[purple,pink,blue,green];final i=name.isEmpty?0:name.codeUnitAt(0)%colors.length;
     return Container(
       width:size,height:size,alignment:Alignment.center,
@@ -1215,6 +1310,8 @@ class _ChatState extends State<ChatPage>{
   final input=TextEditingController();final scroll=ScrollController();List<Msg> msgs=[];
   final recorder=AudioRecorder();
   bool loading=true,sending=false,peerTyping=false,peerOnline=false,peerRead=false;IO.Socket? socket;String myId='',peerId='';
+  // Приватность собеседника (с сервера): что ему можно показывать, а что скрыто у него
+  String peerAvatar='';bool peerHideOnline=false,peerHideTyping=false,peerHideReads=false;
   int effect=0;double fxIntensity=.55;Timer? typingTimer,typingClear;
 
   @override void initState(){super.initState();activeOpenChatId=widget.chat.id;load();restoreFx();Api.debugLog('chat open id=${widget.chat.id} name=${widget.chat.name}');}
@@ -1250,6 +1347,10 @@ class _ChatState extends State<ChatPage>{
       try{
         final pr=await Api.get('/chats/'+widget.chat.id+'/peer');
         peerId=(pr['id']??'').toString();
+        peerAvatar=(pr['avatar_url']??'').toString();
+        peerHideOnline=pr['show_online']==false;
+        peerHideTyping=pr['show_typing']==false;
+        peerHideReads=pr['show_reads']==false;
         if(peerId.isNotEmpty&&mounted)setState((){});
       }catch(_){}
     }catch(_){}
@@ -1277,6 +1378,7 @@ class _ChatState extends State<ChatPage>{
     });
     socket!.on('typing',(data){
       if(!mounted||data is! Map)return;
+      if(peerHideTyping)return; // приватность: собеседник скрыл «печатает...»
       if(((data['chatId']??'').toString())!=widget.chat.id)return;
       if(((data['userId']??'').toString())==myId)return;
       final typing=data['typing']==true;
@@ -1286,6 +1388,7 @@ class _ChatState extends State<ChatPage>{
     });
     socket!.on('read',(d){
       if(!mounted||d is! Map)return;
+      if(peerHideReads)return; // приватность: собеседник скрыл отчёты о прочтении
       if(((d['userId']??'').toString())==myId)return;
       if(!peerRead)setState(()=>peerRead=true);
     });
@@ -1296,6 +1399,7 @@ class _ChatState extends State<ChatPage>{
     });
     socket!.on('presence',(data){
       if(!mounted||data is! Map)return;
+      if(peerHideOnline){if(peerOnline)setState(()=>peerOnline=false);return;} // приватность: собеседник скрыл «в сети»
       if(((data['userId']??'').toString())!=myId&&peerId.isNotEmpty&&((data['userId']??'').toString())==peerId){
         setState(()=>peerOnline=data['online']==true);
       }
@@ -1446,7 +1550,7 @@ class _ChatState extends State<ChatPage>{
                           padding:const EdgeInsets.symmetric(horizontal:5,vertical:5),
                           child:Row(
                             children:[
-                              Avatar(name:widget.chat.name,size:40),
+                              Avatar(name:widget.chat.name,size:40,url:peerAvatar.isNotEmpty?peerAvatar:widget.chat.peerAvatar),
                               const SizedBox(width:10),
                               Expanded(
                                 child:Column(
@@ -1455,10 +1559,14 @@ class _ChatState extends State<ChatPage>{
                                   children:[
                                     Text(widget.chat.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800)),
                                     const SizedBox(height:2),
-                                    Text(
-                                      peerTyping?s.typingNow:(peerOnline||widget.chat.online)?s.online:s.active,
-                                      style:TextStyle(color:peerTyping?pink:(peerOnline||widget.chat.online)?purple:muted,fontSize:11,fontWeight:peerTyping?FontWeight.w800:FontWeight.w600),
-                                    ),
+                                    Builder(builder:(_){
+                                      final onlineOk=(peerOnline||widget.chat.online)&&!peerHideOnline;
+                                      final typingOk=peerTyping&&!peerHideTyping;
+                                      return Text(
+                                        typingOk?s.typingNow:onlineOk?s.online:s.active,
+                                        style:TextStyle(color:typingOk?pink:onlineOk?purple:muted,fontSize:11,fontWeight:typingOk?FontWeight.w800:FontWeight.w600),
+                                      );
+                                    }),
                                   ],
                                 ),
                               ),
@@ -1500,7 +1608,7 @@ class _ChatState extends State<ChatPage>{
                       :ListView.builder(
                         controller:scroll,
                         padding:const EdgeInsets.fromLTRB(14,18,14,14),
-                        itemCount:msgs.length+(peerTyping?1:0),
+                        itemCount:msgs.length+(peerTyping&&!peerHideTyping?1:0),
                         itemBuilder:(_,i){
                           if(i==msgs.length){
                             return Align(
@@ -1511,7 +1619,7 @@ class _ChatState extends State<ChatPage>{
                           final showChip=i==0||_dayKey(msgs[i-1].createdAt)!=_dayKey(msgs[i].createdAt);
                           return Column(children:[
                             if(showChip)_DateChip(d:msgs[i].createdAt),
-                            Bubble(key:ValueKey(msgs[i].id),msg:msgs[i],read:peerRead,chatId:widget.chat.id),
+                            Bubble(key:ValueKey(msgs[i].id),msg:msgs[i],read:peerRead&&!peerHideReads,chatId:widget.chat.id),
                           ]);
                         },
                       ),
@@ -1559,7 +1667,7 @@ class _ChatState extends State<ChatPage>{
           child:Column(
             mainAxisSize:MainAxisSize.min,
             children:[
-              Avatar(name:widget.chat.name,size:84),
+              Avatar(name:widget.chat.name,size:84,url:peerAvatar.isNotEmpty?peerAvatar:widget.chat.peerAvatar),
               const SizedBox(height:12),
               Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
               if(username.isNotEmpty) ...[
@@ -2128,7 +2236,7 @@ class _ContactsState extends State<Contacts>{
     if(!mounted)return;setState(()=>loading=true);
     try{
       final a=await Api.get('/users?q='+Uri.encodeQueryComponent(q));
-      people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString())).toList();
+      people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString(),avatar:(x['avatar_url']??'').toString())).toList();
     }catch(e){people=[];error=e.toString();}
     if(mounted)setState(()=>loading=false);
   }
@@ -2178,7 +2286,7 @@ class _ContactsState extends State<Contacts>{
                 border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7)),
               ),
               child:Row(children:[
-                Avatar(name:u.name,size:52),const SizedBox(width:12),
+                Avatar(name:u.name,size:52,url:u.avatar),const SizedBox(width:12),
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text(u.name,style:const TextStyle(fontWeight:FontWeight.w800)),
                   const SizedBox(height:3),
@@ -2230,6 +2338,7 @@ class _CallsState extends State<Calls>{
                 final dur=int.tryParse('${c['duration']??0}')??0;
                 final name=(c['title']??'?').toString();
                 final chatId=(c['chat_id']??'').toString();
+                final pav=(c['peer_avatar']??'').toString();
                 final Color mark=status=='missed'?pink:(status=='declined'?const Color(0xFFFFB86B):green);
                 final IconData ic=dir=='out'?Icons.call_made_rounded:Icons.call_received_rounded;
                 final when=shortTime((c['created_at']??'').toString());
@@ -2243,7 +2352,7 @@ class _CallsState extends State<Calls>{
                       padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
                       decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7))),
                       child:Row(children:[
-                        Avatar(name:name,size:52),const SizedBox(width:12),
+                        Avatar(name:name,size:52,url:pav),const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                           Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
                           const SizedBox(height:3),
@@ -2281,11 +2390,28 @@ class _SettingsItem extends StatelessWidget{
   );
 }
 
-class Settings extends StatelessWidget{
+class Settings extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
   final ValueChanged<bool> onTheme,onNotifications;final ValueChanged<String> onLanguage;
-  final Future<void> Function(String,String) onProfile;final VoidCallback onLogout;
+  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;final VoidCallback onLogout;
   const Settings({super.key,required this.name,required this.username,required this.light,required this.language,required this.notifications,required this.onTheme,required this.onLanguage,required this.onNotifications,required this.onProfile,required this.onLogout});
+  @override State<Settings> createState()=>_SettingsState();
+}
+class _SettingsState extends State<Settings>{
+  String avatar='';
+  @override void initState(){super.initState();_loadMe();}
+  Future<void> _loadMe()async{
+    try{
+      final me=await Api.get('/me');
+      if(!mounted)return;
+      // Сервер — источник правды по приватности: подтягиваем флаги
+      final so=me['show_online'],st=me['show_typing'],sr=me['show_reads'];
+      if(so is bool)gShowOnline=so;
+      if(st is bool)gShowTyping=st;
+      if(sr is bool)gShowReads=sr;
+      setState(()=>avatar=(me['avatar_url']??'').toString());
+    }catch(_){}
+  }
   @override Widget build(BuildContext context){
     final s=S(context);
     return ListView(
@@ -2294,15 +2420,15 @@ class Settings extends StatelessWidget{
       children:[
       const _VibeWordmark(fontSize:28),const SizedBox(height:18),
       _SettingsItem(
-        onTap:()=>edit(context),
+        onTap:_editProfile,
         child:Padding(
           padding:const EdgeInsets.symmetric(horizontal:4,vertical:10),
           child:Row(children:[
-            Avatar(name:name,size:62),const SizedBox(width:12),
+            Avatar(name:widget.name,size:62,url:avatar),const SizedBox(width:12),
             Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+              Text(widget.name,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
               const SizedBox(height:3),
-              Text('@'+username,style:const TextStyle(color:muted))
+              Text('@'+widget.username,style:const TextStyle(color:muted))
             ])),
             const Icon(Icons.arrow_forward_ios_rounded,size:16,color:muted),
           ]),
@@ -2311,29 +2437,32 @@ class Settings extends StatelessWidget{
       const SizedBox(height:6),
       SwitchListTile(
         contentPadding:const EdgeInsets.symmetric(horizontal:4),
-        value:!light,
-        onChanged:(v)=>onTheme(!v),
-        secondary:const Icon(Icons.nights_stay_outlined),
-        title:Text(s.darkY2K,style:const TextStyle(fontWeight:FontWeight.w800)),
-        subtitle:Text(s.darkY2KSub,style:const TextStyle(color:muted)),
-      ),
-      const SizedBox(height:6),
-      SwitchListTile(
-        contentPadding:const EdgeInsets.symmetric(horizontal:4),
-        value:notifications,
-        onChanged:onNotifications,
+        value:widget.notifications,
+        onChanged:widget.onNotifications,
         secondary:const Icon(Icons.notifications_none_rounded),
         title:Text(s.notifications,style:const TextStyle(fontWeight:FontWeight.w800)),
-        subtitle:Text(notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
+        subtitle:Text(widget.notifications?s.notificationsOn:s.notificationsOff,style:const TextStyle(color:muted)),
       ),
-      section(context,s.language,[ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context))]),
+      section(context,s.appearance,[
+        Padding(
+          padding:const EdgeInsets.fromLTRB(4,4,4,10),
+          child:Row(children:[
+            Expanded(child:_ThemeCard(dark:true,selected:!widget.light,label:s.themeDark,onTap:()=>widget.onTheme(true))),
+            const SizedBox(width:10),
+            Expanded(child:_ThemeCard(dark:false,selected:widget.light,label:s.themeLight,onTap:()=>widget.onTheme(false))),
+          ]),
+        ),
+        ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(widget.language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context)),
+      ]),
+      section(context,s.privacy,[
+        ListTile(leading:const Icon(Icons.visibility_outlined),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>privacySheet()),
+      ]),
       section(context,s.security,[
-        ListTile(leading:const Icon(Icons.lock_outline_rounded),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>privacySheet(context)),
-        ListTile(leading:const Icon(Icons.shield_outlined),title:Text(s.security),subtitle:Text(s.securitySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,s.security,s.securityBody)),
+        ListTile(leading:const Icon(Icons.shield_outlined),title:Text(s.security),subtitle:Text(s.securityRealSub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>securitySheet()),
       ]),
       section(context,s.about,[ListTile(leading:const Icon(Icons.info_outline_rounded),title:Text(s.about),subtitle:Text(s.version,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,'vibe<3',s.aboutBody))]),
       const SizedBox(height:18),
-      OutlinedButton.icon(onPressed:onLogout,icon:const Icon(Icons.logout_rounded),label:Text(s.signOut),style:OutlinedButton.styleFrom(foregroundColor:pink,side:const BorderSide(color:pink),minimumSize:const Size.fromHeight(52),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)))),
+      OutlinedButton.icon(onPressed:widget.onLogout,icon:const Icon(Icons.logout_rounded),label:Text(s.signOut),style:OutlinedButton.styleFrom(foregroundColor:pink,side:const BorderSide(color:pink),minimumSize:const Size.fromHeight(52),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)))),
     ]);
   }
   Widget section(BuildContext c,String title,List<Widget> children)=>Padding(
@@ -2356,34 +2485,84 @@ class Settings extends StatelessWidget{
     final s=S(context);
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
       Padding(padding:const EdgeInsets.fromLTRB(20,8,20,4),child:Text(s.chooseLanguage,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900))),
-      ListTile(leading:const Text('🇷🇺',style:TextStyle(fontSize:24)),title:Text(s.russian),trailing:language=='ru'?const Icon(Icons.check_rounded,color:pink):null,onTap:(){Navigator.pop(context);onLanguage('ru');}),
-      ListTile(leading:const Text('🇺🇸',style:TextStyle(fontSize:24)),title:Text(s.english),trailing:language=='en'?const Icon(Icons.check_rounded,color:pink):null,onTap:(){Navigator.pop(context);onLanguage('en');}),
+      ListTile(leading:const Text('🇷🇺',style:TextStyle(fontSize:24)),title:Text(s.russian),trailing:widget.language=='ru'?const Icon(Icons.check_rounded,color:pink):null,onTap:(){Navigator.pop(context);widget.onLanguage('ru');}),
+      ListTile(leading:const Text('🇺🇸',style:TextStyle(fontSize:24)),title:Text(s.english),trailing:widget.language=='en'?const Icon(Icons.check_rounded,color:pink):null,onTap:(){Navigator.pop(context);widget.onLanguage('en');}),
       const SizedBox(height:12),
     ])));
   }
-  void edit(BuildContext context){
-    final s=S(context);final n=TextEditingController(text:name);final u=TextEditingController(text:username);bool busy=false;
-    showDialog(context:context,builder:(_)=>StatefulBuilder(builder:(ctx,setLocal)=>AlertDialog(
-      title:Text(s.editProfile),
-      content:Column(mainAxisSize:MainAxisSize.min,children:[
-        _BareField(controller:n,hint:s.name),
-        const SizedBox(height:11),
-        Row(children:[const Text('@',style:TextStyle(color:muted,fontSize:16)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.username))]),
-        const SizedBox(height:7),
-        Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:const TextStyle(color:muted,fontSize:11)))
-      ]),
-      actions:[
-        TextButton(onPressed:busy?null:()=>Navigator.pop(ctx),child:Text(s.cancel)),
-        FilledButton(onPressed:busy?null:()async{
-          final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');
-          if(nn.length<2||!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(uu)){ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.profileCheck)));return;}
-          setLocal(()=>busy=true);
-          try{await onProfile(nn,uu);if(ctx.mounted)Navigator.pop(ctx);}catch(e){setLocal(()=>busy=false);final x=e.toString();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x.contains('username_taken')?s.usernameTaken:s.profileSaveError))); }
-        },child:Text(busy?s.wait:s.save)),
-      ],
-    )));
+  // ===== Редактор профиля: фото (камера/галерея/удалить) + имя/username, стиль vibe<3 =====
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  Future<void> _editProfile()async{
+    final s=S(context);
+    final n=TextEditingController(text:widget.name);final u=TextEditingController(text:widget.username);
+    String? pending; // null = не менял, '' = удалить фото, dataURL = новое фото
+    bool busy=false;
+    await showModalBottomSheet(
+      context:context,
+      isScrollControlled:true,
+      showDragHandle:true,
+      builder:(ctx)=>StatefulBuilder(builder:(ctx,setLocal)=>Padding(
+        padding:EdgeInsets.only(bottom:MediaQuery.of(ctx).viewInsets.bottom),
+        child:Padding(
+          padding:const EdgeInsets.fromLTRB(24,4,24,26),
+          child:Column(mainAxisSize:MainAxisSize.min,children:[
+            Text(s.editProfile,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+            const SizedBox(height:16),
+            _AvatarPicker(name:widget.name,url:pending==null?avatar:pending,onTap:()async{
+              // Выбор источника фото
+              final src=await showModalBottomSheet<String>(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
+                ListTile(leading:const Icon(Icons.photo_camera_outlined),title:Text(s.cameraShot),onTap:()=>Navigator.pop(context,'camera')),
+                ListTile(leading:const Icon(Icons.photo_outlined),title:Text(s.fromGallery),onTap:()=>Navigator.pop(context,'gallery')),
+                if(((pending!=null&&pending!.isNotEmpty)||avatar.isNotEmpty)||pending=='')
+                  ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.removePhoto),onTap:()=>Navigator.pop(context,'remove')),
+              ])));
+              if(src==null)return;
+              if(src=='remove'){setLocal(()=>pending='');return;}
+              try{
+                final x=await ImagePicker().pickImage(source:src=='camera'?ImageSource.camera:ImageSource.gallery,maxWidth:512,maxHeight:512,imageQuality:82);
+                if(x==null)return;
+                final b=await x.readAsBytes();
+                final data='data:image/jpeg;base64,'+base64Encode(b);
+                if(data.length>500000){snack(s.photoTooBig);return;}
+                setLocal(()=>pending=data);
+              }catch(_){snack(s.mediaFailed);}
+            }),
+            const SizedBox(height:18),
+            _BareField(controller:n,hint:s.name),
+            const SizedBox(height:11),
+            Row(children:[const Text('@',style:TextStyle(color:muted,fontSize:16)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.username))]),
+            const SizedBox(height:7),
+            Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:const TextStyle(color:muted,fontSize:11))),
+            const SizedBox(height:18),
+            _GradientButton(height:54,radius:16,busy:busy,icon:Icons.check_rounded,label:s.save,onTap:()async{
+              FocusManager.instance.primaryFocus?.unfocus();
+              final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');
+              if(nn.length<2||!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(uu)){snack(s.profileCheck);return;}
+              setLocal(()=>busy=true);
+              try{
+                final resp=await widget.onProfile(nn,uu,pending);
+                if(mounted)setState(()=>avatar=(resp['avatar_url']??(pending==''?'':avatar)).toString());
+                if(ctx.mounted)Navigator.pop(ctx);
+                snack(s.saved);
+              }catch(e){
+                setLocal(()=>busy=false);
+                final x=e.toString();
+                snack(x.contains('username_taken')?s.usernameTaken:(x.contains('invalid_avatar')?s.photoTooBig:s.profileSaveError));
+              }
+            }),
+            const SizedBox(height:4),
+            TextButton(onPressed:busy?null:()=>Navigator.pop(ctx),child:Text(s.cancel)),
+          ]),
+        ),
+      )),
+    );
+    n.dispose();u.dispose();
   }
-  void privacySheet(BuildContext context){
+  // ===== Приватность: 4 живых тумблера, первые три применяются на сервере =====
+  Future<void> _putPrivacy(Map<String,dynamic> flags)async{
+    try{await Api.put('/me',{'name':widget.name,'username':widget.username,...flags});}catch(_){}
+  }
+  void privacySheet(){
     final s=S(context);
     showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:StatefulBuilder(builder:(ctx,setSheet)=>Padding(
       padding:const EdgeInsets.fromLTRB(20,8,20,24),
@@ -2391,14 +2570,330 @@ class Settings extends StatelessWidget{
         Text(s.privacy,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
         const SizedBox(height:4),
         Text(s.privacyRealSub,style:const TextStyle(color:muted,fontSize:12)),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowOnline,secondary:const Icon(Icons.visibility_rounded),title:Text(s.showOnline),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_online',v);gShowOnline=v;setSheet(()=>{});}),
-        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowTyping,secondary:const Icon(Icons.keyboard_rounded),title:Text(s.showTyping),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_typing',v);gShowTyping=v;setSheet(()=>{});}),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowOnline,secondary:const Icon(Icons.visibility_rounded),title:Text(s.showOnline),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_online',v);gShowOnline=v;setSheet(()=>{});_putPrivacy({'showOnline':v});}),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowTyping,secondary:const Icon(Icons.keyboard_rounded),title:Text(s.showTyping),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_typing',v);gShowTyping=v;setSheet(()=>{});_putPrivacy({'showTyping':v});}),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowReads,secondary:const Icon(Icons.done_all_rounded),title:Text(s.showReads),subtitle:Text(s.showReadsSub,style:const TextStyle(color:muted,fontSize:12)),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_reads',v);gShowReads=v;setSheet(()=>{});_putPrivacy({'showReads':v});}),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gHidePreviews,secondary:const Icon(Icons.hide_source_rounded),title:Text(s.hidePreviews),subtitle:Text(s.hidePreviewsSub,style:const TextStyle(color:muted,fontSize:12)),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('hide_previews',v);gHidePreviews=v;setSheet(()=>{});chatsChanged.value++;}),
         const SizedBox(height:6),
         Text(s.privacyBody,style:const TextStyle(color:muted,fontSize:12,height:1.45)),
       ]),
     ))));
   }
+  // ===== Безопасность: PIN-код + блокировка в фоне + запрет скриншотов =====
+  Future<String?> _askPin(String title)=>Navigator.push<String>(context,MaterialPageRoute(fullscreenDialog:true,builder:(_)=>_PinScreen(title:title,popOnSuccess:true,onEnter:(pin)async=>true)));
+  Future<bool> _verifyPin(String pin)async{final p=await SharedPreferences.getInstance();return pinHash(pin)==(p.getString('pin_hash')??'');}
+  Future<void> _setPin(String pin)async{final p=await SharedPreferences.getInstance();await p.setString('pin_hash',pinHash(pin));gPinOn=true;}
+  Future<void> _togglePin(bool want)async{
+    final s=S(context);
+    if(want){
+      final p1=await _askPin(s.pinCreate);if(p1==null)return;
+      final p2=await _askPin(s.pinRepeat);if(p2==null)return;
+      if(p1!=p2){snack(s.pinMismatch);return;}
+      await _setPin(p1);
+    }else{
+      final old=await _askPin(s.pinEnter);if(old==null)return;
+      if(!await _verifyPin(old)){snack(s.pinWrong);return;}
+      final p=await SharedPreferences.getInstance();await p.remove('pin_hash');gPinOn=false;
+    }
+    if(mounted)setState(()=>{});
+  }
+  Future<void> _changePin()async{
+    final s=S(context);
+    final old=await _askPin(s.pinEnter);if(old==null)return;
+    if(!await _verifyPin(old)){snack(s.pinWrong);return;}
+    final p1=await _askPin(s.pinCreate);if(p1==null)return;
+    final p2=await _askPin(s.pinRepeat);if(p2==null)return;
+    if(p1!=p2){snack(s.pinMismatch);return;}
+    await _setPin(p1);
+    if(mounted)setState(()=>{});
+  }
+  Future<void> securitySheet()async{
+    final s=S(context);
+    final p=await SharedPreferences.getInstance();
+    final secure=p.getBool('secure_mode')??false;
+    if(!mounted)return;
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:StatefulBuilder(builder:(ctx,setSheet)=>Padding(
+      padding:const EdgeInsets.fromLTRB(20,8,20,24),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(s.security,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+        const SizedBox(height:4),
+        Text(s.securityRealSub,style:const TextStyle(color:muted,fontSize:12)),
+        SwitchListTile(
+          contentPadding:EdgeInsets.zero,
+          value:gPinOn,
+          secondary:Icon(gPinOn?Icons.lock_rounded:Icons.lock_open_rounded,color:gPinOn?purple:null),
+          title:Text(s.pinLock,style:const TextStyle(fontWeight:FontWeight.w800)),
+          subtitle:Text(gPinOn?s.pinEnabled:s.pinDisabled,style:const TextStyle(color:muted)),
+          onChanged:(v)async{Navigator.pop(ctx);await _togglePin(v);},
+        ),
+        if(gPinOn)...[
+          SwitchListTile(
+            contentPadding:EdgeInsets.zero,
+            value:gPinBg,
+            secondary:const Icon(Icons.smartphone_rounded),
+            title:Text(s.pinBg),
+            subtitle:Text(s.pinBgSub,style:const TextStyle(color:muted,fontSize:12)),
+            onChanged:(v)async{final pp=await SharedPreferences.getInstance();await pp.setBool('pin_bg',v);gPinBg=v;setSheet(()=>{});},
+          ),
+          ListTile(
+            contentPadding:EdgeInsets.zero,
+            leading:const Icon(Icons.password_rounded),
+            title:Text(s.pinChange),
+            onTap:(){Navigator.pop(ctx);_changePin();},
+          ),
+        ],
+        SwitchListTile(
+          contentPadding:EdgeInsets.zero,
+          value:secure,
+          secondary:const Icon(Icons.screenshot_monitor_outlined),
+          title:Text(s.screenshots),
+          subtitle:Text(s.screenshotsSub,style:const TextStyle(color:muted,fontSize:12)),
+          onChanged:(v)async{final pp=await SharedPreferences.getInstance();await pp.setBool('secure_mode',v);await applySecureFlag(v);setSheet(()=>{});},
+        ),
+        const SizedBox(height:6),
+        Text(s.securityNote,style:const TextStyle(color:muted,fontSize:12,height:1.45)),
+      ]),
+    ))));
+  }
   void info(BuildContext context,String title,String body)=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(title),content:Text(body),actions:[FilledButton(onPressed:()=>Navigator.pop(context),child:Text(S(context).ok))]));
+}
+
+// ===== Карточка выбора темы (Оформление) =====
+class _ThemeCard extends StatelessWidget{
+  final bool dark,selected;final String label;final VoidCallback onTap;
+  const _ThemeCard({required this.dark,required this.selected,required this.label,required this.onTap});
+  @override Widget build(BuildContext context){
+    return Material(
+      type:MaterialType.transparency,
+      child:InkWell(
+        onTap:onTap,
+        borderRadius:BorderRadius.circular(20),
+        child:AnimatedContainer(
+          duration:const Duration(milliseconds:200),
+          curve:Curves.easeOutCubic,
+          padding:const EdgeInsets.all(3),
+          decoration:BoxDecoration(
+            gradient:selected?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
+            color:selected?null:Colors.transparent,
+            borderRadius:BorderRadius.circular(20),
+            border:Border.all(color:selected?Colors.transparent:stroke),
+            boxShadow:selected?[BoxShadow(color:pink.withOpacity(.28),blurRadius:18,offset:const Offset(0,6))]:null,
+          ),
+          child:Container(
+            padding:const EdgeInsets.all(10),
+            decoration:BoxDecoration(
+              color:dark?const Color(0xFF0A0A10):const Color(0xFFF3F1FA),
+              borderRadius:BorderRadius.circular(17),
+            ),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+              Row(children:[
+                Container(width:15,height:15,decoration:const BoxDecoration(color:purple,shape:BoxShape.circle)),
+                const SizedBox(width:6),
+                Container(width:15,height:15,decoration:const BoxDecoration(color:pink,shape:BoxShape.circle)),
+                const Spacer(),
+                Container(width:34,height:12,decoration:BoxDecoration(color:dark?const Color(0xFF1C1C26):Colors.white,borderRadius:BorderRadius.circular(4))),
+              ]),
+              const SizedBox(height:9),
+              Container(height:8,decoration:BoxDecoration(gradient:const LinearGradient(colors:brandGrad),borderRadius:BorderRadius.circular(4))),
+              const SizedBox(height:12),
+              Row(children:[
+                if(selected)const Icon(Icons.check_circle_rounded,size:15,color:pink)else Icon(Icons.circle_outlined,size:14,color:dark?muted:Colors.black26),
+                const SizedBox(width:6),
+                Text(label,style:TextStyle(fontSize:12.5,fontWeight:FontWeight.w800,color:dark?Colors.white:const Color(0xFF171522))),
+              ]),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===== Аватар с градиентным кольцом и кнопкой камеры (редактор профиля) =====
+class _AvatarPicker extends StatelessWidget{
+  final String name;final String? url;final VoidCallback onTap;
+  const _AvatarPicker({required this.name,required this.url,required this.onTap});
+  @override Widget build(BuildContext context){
+    final hasPhoto=Avatar.bytes(url)!=null;
+    return InkWell(
+      onTap:onTap,
+      borderRadius:BorderRadius.circular(44),
+      child:Stack(
+        clipBehavior:Clip.none,
+        children:[
+          Container(
+            padding:const EdgeInsets.all(3),
+            decoration:BoxDecoration(
+              gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad),
+              borderRadius:BorderRadius.circular(42),
+              boxShadow:[BoxShadow(color:pink.withOpacity(.32),blurRadius:26,spreadRadius:-4,offset:const Offset(0,8))],
+            ),
+            child:Avatar(name:name,size:112,url:url),
+          ),
+          Positioned(
+            right:-2,bottom:-2,
+            child:Container(
+              width:36,height:36,
+              decoration:BoxDecoration(
+                gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad),
+                shape:BoxShape.circle,
+                border:Border.all(color:const Color(0xFF15151D),width:3),
+              ),
+              child:Icon(hasPhoto?Icons.auto_fix_high_rounded:Icons.add_a_photo_rounded,size:17,color:Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===== Экран блокировки (PIN) =====
+class LockScreen extends StatelessWidget{
+  final VoidCallback onUnlock;final Future<void> Function() onSignOut;
+  const LockScreen({super.key,required this.onUnlock,required this.onSignOut});
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return _PinScreen(
+      title:s.lockedTitle,
+      sub:s.pinUnlock,
+      signOut:true,
+      popOnSuccess:false,
+      onSignOut:onSignOut,
+      onEnter:(pin)async{
+        final p=await SharedPreferences.getInstance();
+        if(pinHash(pin)==(p.getString('pin_hash')??'')){onUnlock();return true;}
+        return false;
+      },
+    );
+  }
+}
+
+class _PinScreen extends StatefulWidget{
+  final String title;final String? sub;final Future<bool> Function(String pin) onEnter;
+  final bool signOut;final bool popOnSuccess;final Future<void> Function()? onSignOut;
+  const _PinScreen({required this.title,this.sub,required this.onEnter,this.signOut=false,this.popOnSuccess=true,this.onSignOut});
+  @override State<_PinScreen> createState()=>_PinScreenState();
+}
+class _PinScreenState extends State<_PinScreen> with SingleTickerProviderStateMixin{
+  String code='';bool busy=false,error=false;
+  late final AnimationController shake=AnimationController(vsync:this,duration:const Duration(milliseconds:420));
+  @override void dispose(){shake.dispose();super.dispose();}
+  void _tap(String d){
+    if(busy||code.length>=4)return;
+    setState((){code+=d;error=false;});
+    if(code.length==4)_submit();
+  }
+  void _back(){if(busy||code.isEmpty)return;setState(()=>code=code.substring(0,code.length-1));}
+  Future<void> _submit()async{
+    setState(()=>busy=true);
+    bool ok;
+    try{ok=await widget.onEnter(code);}catch(_){ok=false;}
+    if(!mounted)return;
+    if(ok){
+      if(widget.popOnSuccess)Navigator.pop(context,code);
+      else setState(()=>busy=false); // LockScreen: состояние приложения меняется само
+    }else{
+      shake.forward(from:0);
+      setState((){busy=false;code='';error=true;});
+    }
+  }
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return Scaffold(
+      backgroundColor:bg,
+      body:Stack(children:[
+        const Positioned.fill(child:VibeAnimatedBackground()),
+        SafeArea(child:Padding(
+          padding:const EdgeInsets.symmetric(horizontal:34),
+          child:Column(children:[
+            const Spacer(),
+            const _BrandMark(),
+            const SizedBox(height:22),
+            AnimatedBuilder(
+              animation:shake,
+              builder:(_,child)=>Transform.translate(offset:Offset(math.sin(shake.value*math.pi*5)*(1-shake.value)*12,0),child:child),
+              child:Column(children:[
+                Text(widget.title,textAlign:TextAlign.center,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900,color:Colors.white)),
+                if(widget.sub!=null)...[
+                  const SizedBox(height:7),
+                  Text(widget.sub!,style:const TextStyle(color:muted,fontSize:13)),
+                ],
+                const SizedBox(height:22),
+                Row(
+                  mainAxisAlignment:MainAxisAlignment.center,
+                  children:[for(int i=0;i<4;i++)Container(
+                    margin:const EdgeInsets.symmetric(horizontal:7),
+                    width:16,height:16,
+                    decoration:BoxDecoration(
+                      shape:BoxShape.circle,
+                      color:i<code.length?(error?pink:purple):Colors.transparent,
+                      border:error&&i>=code.length?Border.all(color:pink,width:1.6):Border.all(color:i<code.length?Colors.transparent:stroke,width:1.6),
+                    ),
+                  )],
+                ),
+                if(error)...[
+                  const SizedBox(height:12),
+                  Text(s.pinWrong,style:const TextStyle(color:pink,fontSize:12.5,fontWeight:FontWeight.w800)),
+                ],
+              ]),
+            ),
+            const SizedBox(height:26),
+            _PinPad(onDigit:_tap,onBack:_back,busy:busy),
+            const Spacer(),
+            if(widget.signOut)Padding(
+              padding:const EdgeInsets.only(bottom:16),
+              child:TextButton.icon(
+                onPressed:busy?null:()async{
+                  final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text(s.pinSignOut),content:Text(s.pinSignOutQ),actions:[
+                    TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),
+                    FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(s.pinSignOut)),
+                  ]));
+                  if(ok==true)await widget.onSignOut!();
+                },
+                icon:const Icon(Icons.logout_rounded,size:17,color:pink),
+                label:Text(s.pinSignOut,style:const TextStyle(color:pink,fontSize:13)),
+              ),
+            ),
+          ]),
+        )),
+      ]),
+    );
+  }
+}
+
+class _PinPad extends StatelessWidget{
+  final ValueChanged<String> onDigit;final VoidCallback onBack;final bool busy;
+  const _PinPad({required this.onDigit,required this.onBack,required this.busy});
+  Widget _key(String k)=>k.isEmpty
+    ?const SizedBox(width:76,height:64)
+    :Padding(
+      padding:const EdgeInsets.all(5),
+      child:Material(
+        color:Colors.transparent,
+        child:InkWell(
+          onTap:busy?null:(k=='back'?onBack:()=>onDigit(k)),
+          borderRadius:BorderRadius.circular(19),
+          splashColor:pink.withOpacity(.10),
+          child:Container(
+            width:66,height:56,
+            alignment:Alignment.center,
+            decoration:BoxDecoration(
+              color:surface.withOpacity(.72),
+              borderRadius:BorderRadius.circular(18),
+              border:Border.all(color:stroke),
+            ),
+            child:k=='back'
+              ?const Icon(Icons.backspace_outlined,size:21,color:muted)
+              :Text(k,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:Colors.white)),
+          ),
+        ),
+      ),
+    );
+  @override Widget build(BuildContext context)=>Column(mainAxisSize:MainAxisSize.min,children:[
+    for(final row in const[['1','2','3'],['4','5','6'],['7','8','9'],['','0','back']])
+      Row(mainAxisAlignment:MainAxisAlignment.center,children:[for(final k in row)_key(k)]),
+  ]);
 }
 
 class VibeSplash extends StatefulWidget{

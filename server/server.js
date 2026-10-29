@@ -60,7 +60,16 @@ app.post('/auth/login',async(req,res)=>{try{
  const u=r.rows[0];res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-app.get('/me',auth,async(req,res)=>{const r=await pool.query('SELECT id,email,username,display_name,avatar_url FROM users WHERE id=$1',[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
+const _ME_COLS='id,email,username,display_name,avatar_url,COALESCE(show_online,true) AS show_online,COALESCE(show_typing,true) AS show_typing,COALESCE(show_reads,true) AS show_reads';
+app.get('/me',auth,async(req,res)=>{const r=await pool.query(`SELECT ${_ME_COLS} FROM users WHERE id=$1`,[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
+// Приватность: флаги хранятся на сервере, чтобы собеседник не видел твой статус даже через прямой запрос
+function _privacy(body){
+  const out={};
+  for(const [k,col] of [['showOnline','show_online'],['showTyping','show_typing'],['showReads','show_reads']]){
+    if(typeof body?.[k]==='boolean')out[col]=body[k];
+  }
+  return out;
+}
 app.put('/me',auth,async(req,res)=>{try{
  const name=String(req.body?.name??'').trim();
  const rawUsername=String(req.body?.username??'').trim().toLowerCase().replace(/^@/,'');
@@ -68,7 +77,20 @@ app.put('/me',auth,async(req,res)=>{try{
  if(!/^[a-z0-9_]{3,30}$/.test(rawUsername))return res.status(400).json({error:'invalid_username'});
  const current=await pool.query('SELECT id FROM users WHERE id=$1',[req.user.id]);
  if(!current.rowCount)return res.status(404).json({error:'user_not_found'});
- const r=await pool.query('UPDATE users SET display_name=$1, username=$2 WHERE id=$3 RETURNING id,email,username,display_name,avatar_url',[name,rawUsername,req.user.id]);
+ // Аватар: data:image/... base64, максимум ~500KB строки; '' = удалить фото
+ let avatar=null;const rawAvatar=req.body?.avatar;
+ if(rawAvatar!=null){
+   const a=String(rawAvatar);
+   if(a==='')avatar='';
+   else if(/^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(a)&&a.length<=520000)avatar=a.slice(0,520000);
+   else return res.status(400).json({error:'invalid_avatar'});
+ }
+ const pr=_privacy(req.body);
+ const sets=['display_name=$1','username=$2'];const vals=[name,rawUsername];let i=3;
+ if(avatar!=null){sets.push(`avatar_url=$${i++}`);vals.push(avatar===''?null:avatar);}
+ for(const [col,v] of Object.entries(pr)){sets.push(`${col}=$${i++}`);vals.push(v);}
+ vals.push(req.user.id);
+ const r=await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${i} RETURNING ${_ME_COLS}`,vals);
  if(!r.rowCount)return res.status(404).json({error:'user_not_found'});
  res.json(r.rows[0]);
 }catch(e){
@@ -103,6 +125,12 @@ app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,
  CASE WHEN c.is_group THEN c.title
       ELSE COALESCE((SELECT u.display_name FROM chat_members cm2 JOIN users u ON u.id=cm2.user_id WHERE cm2.chat_id=c.id AND cm2.user_id<>$1 LIMIT 1),c.title)
  END AS title,
+ CASE WHEN c.is_group THEN NULL
+      ELSE (SELECT u.avatar_url FROM chat_members cm3 JOIN users u ON u.id=cm3.user_id WHERE cm3.chat_id=c.id AND cm3.user_id<>$1 LIMIT 1)
+ END AS peer_avatar,
+ CASE WHEN c.is_group THEN NULL
+      ELSE (SELECT cm4.user_id::text FROM chat_members cm4 WHERE cm4.chat_id=c.id AND cm4.user_id<>$1 LIMIT 1)
+ END AS peer_id,
  COALESCE((SELECT body FROM messages m WHERE m.chat_id=c.id ORDER BY m.created_at DESC LIMIT 1),'') preview,
  COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) AS last_at,
  (SELECT COUNT(*) FROM messages m3 WHERE m3.chat_id=c.id AND m3.sender_id<>$1 AND m3.created_at>COALESCE(cm.last_read_at,cm.joined_at)) AS unread
@@ -112,7 +140,8 @@ app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,
  ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/read',auth,async(req,res)=>{try{
  await pool.query('UPDATE chat_members SET last_read_at=now() WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
- io.to('chat:'+req.params.id).emit('read',{chatId:String(req.params.id),userId:req.user.id});
+ // Приватность: если читатель выключил отчёты о прочтении — собеседник не узнает
+ try{const me=await pool.query('SELECT COALESCE(show_reads,true) AS sr FROM users WHERE id=$1',[req.user.id]);if(me.rows[0]?.sr!==false)io.to('chat:'+req.params.id).emit('read',{chatId:String(req.params.id),userId:req.user.id});}catch(_){io.to('chat:'+req.params.id).emit('read',{chatId:String(req.params.id),userId:req.user.id});}
  res.json({ok:true});
 }catch(e){console.error('read_mark_failed',e);res.status(500).json({error:'read_mark_failed'});}});
 
@@ -158,6 +187,7 @@ app.post('/calls',auth,async(req,res)=>{try{
 app.get('/calls',auth,async(req,res)=>{try{
  const r=await pool.query(`SELECT cl.*,c.is_group,
  CASE WHEN c.is_group THEN c.title ELSE COALESCE((SELECT u.display_name FROM users u WHERE u.id=CASE WHEN cl.caller_id=$1 THEN cl.callee_id ELSE cl.caller_id END),c.title) END AS title,
+ (SELECT u.avatar_url FROM users u WHERE u.id=CASE WHEN cl.caller_id=$1 THEN cl.callee_id ELSE cl.caller_id END) AS peer_avatar,
  CASE WHEN cl.caller_id=$1 THEN 'out' ELSE 'in' END AS direction
  FROM calls cl JOIN chats c ON c.id=cl.chat_id
  WHERE cl.caller_id=$1 OR cl.callee_id=$1 ORDER BY cl.created_at DESC LIMIT 50`,[req.user.id]);
@@ -176,7 +206,7 @@ app.get('/chats/:id/peer',auth,async(req,res)=>{
  try{
   const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
   if(!member.rowCount)return res.status(403).json({error:'not_member'});
-  const r=await pool.query('SELECT u.id,u.username,u.display_name,u.avatar_url FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 AND cm.user_id<>$2 LIMIT 1',[req.params.id,req.user.id]);
+  const r=await pool.query(`SELECT u.id,u.username,u.display_name,u.avatar_url,COALESCE(u.show_online,true) AS show_online,COALESCE(u.show_typing,true) AS show_typing,COALESCE(u.show_reads,true) AS show_reads FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 AND cm.user_id<>$2 LIMIT 1`,[req.params.id,req.user.id]);
   if(!r.rowCount)return res.status(404).json({error:'peer_not_found'});
   res.json(r.rows[0]);
  }catch(e){console.error('peer_lookup_failed',e);res.status(500).json({error:'peer_lookup_failed'});}
@@ -202,9 +232,18 @@ async function notifyMembers(chatId,senderId,senderName,body){
 
 io.on('connection',s=>{
  s.join('user:'+s.user.id); // личная комната: уведомления + звонки без привязки к чату
- s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));
+ s.on('presence',async v=>{try{
+   const me=await pool.query('SELECT COALESCE(show_online,true) AS so FROM users WHERE id=$1',[s.user.id]);
+   if(me.rows[0]?.so===false)return; // приватность: статус «в сети» скрыт — никто не узнаёт
+   s.broadcast.emit('presence',{userId:s.user.id,online:!!v});
+ }catch(e){s.broadcast.emit('presence',{userId:s.user.id,online:!!v});}});
  s.on('joinChat',id=>s.join('chat:'+id));
- s.on('typing',m=>{if(!m||!m.chatId)return;io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});});
+ s.on('typing',async m=>{try{
+   if(!m||!m.chatId)return;
+   const me=await pool.query('SELECT COALESCE(show_typing,true) AS st FROM users WHERE id=$1',[s.user.id]);
+   if(me.rows[0]?.st===false)return; // приватность: «печатает…» скрыто на сервере
+   io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});
+ }catch(e){if(m&&m.chatId)io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});}});
  s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);notifyMembers(m.chatId,s.user.id,s.user.name,m.body);}catch(e){s.emit('error',{error:'message_failed'});}});
  // --- Сигналинг WebRTC-звонков: релей только между участниками чата ---
  s.on('call',async m=>{try{
@@ -274,7 +313,10 @@ async function migrate(){
       duration INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )`,
-    'CREATE INDEX IF NOT EXISTS idx_calls_users ON calls(caller_id,callee_id,created_at DESC)'
+    'CREATE INDEX IF NOT EXISTS idx_calls_users ON calls(caller_id,callee_id,created_at DESC)',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_online BOOLEAN NOT NULL DEFAULT TRUE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_typing BOOLEAN NOT NULL DEFAULT TRUE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_reads BOOLEAN NOT NULL DEFAULT TRUE'
   ];
   for(const sql of statements){
     try{await pool.query(sql);}
