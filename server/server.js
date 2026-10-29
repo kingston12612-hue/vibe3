@@ -100,7 +100,8 @@ function normTarget(purpose,raw){
 
 app.use(cors());
 app.use(express.json({limit:'10mb'}));
-app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true});}catch(e){console.error('health',e);res.status(503).json({ok:false,database:false});}});
+const _BOOT=Date.now();
+app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true,uptime_s:Math.floor((Date.now()-_BOOT)/1000),started_at:new Date(_BOOT).toISOString()});}catch(e){console.error('health',e);res.status(503).json({ok:false,database:false});}});
 
 // v1.3.1: какие каналы доставки кодов подключены (только флаги, без секретов)
 app.get('/delivery/status',(_,res)=>res.json({
@@ -117,7 +118,7 @@ app.post('/debug/log',(req,res)=>{try{
   debugLogs.push(line); if(debugLogs.length>300)debugLogs.splice(0,debugLogs.length-300);
   console.log('[debug-log]',line);
 }catch(_){} res.json({ok:true});});
-app.get('/debug/log',(_,res)=>res.json({count:debugLogs.length,logs:debugLogs.slice(-120)}));
+app.get('/debug/log',(_,res)=>res.json({count:debugLogs.length,uptime_s:Math.floor((Date.now()-_BOOT)/1000),started_at:new Date(_BOOT).toISOString(),logs:debugLogs.slice(-120)}));
 
 function token(user){return jwt.sign({id:user.id,email:user.email,name:user.display_name},SECRET,{expiresIn:'30d'});}
 function auth(req,res,next){try{req.user=jwt.verify((req.headers.authorization||'').replace(/^Bearer /,''),SECRET);next();}catch{res.status(401).json({error:'unauthorized'});}}
