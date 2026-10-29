@@ -3148,7 +3148,7 @@ class _ProfilePageState extends State<ProfilePage>{
       actions:[
         TextButton(onPressed:busy?null:()async{
           setD(()=>busy=true);
-          try{final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':target});setD(()=>{dev=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString();if(dev!=null)ctl.text=dev!;});}
+          try{final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':target});setD(() {dev=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString();if(dev!=null)ctl.text=dev!;});}
           catch(e){if(ctx.mounted)Navigator.pop(ctx);snack(friendlyError(e,s));return;}
           setD(()=>busy=false);
         },child:Text(dev==null?s.regCodeTitle:s.regCodeResend)),
