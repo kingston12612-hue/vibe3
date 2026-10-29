@@ -57,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.3.0 api=$apiBase');
+  Api.debugLog('app start v1.3.1 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -138,7 +138,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.3.0';
+  String get version=>'v1.3.1';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -316,6 +316,9 @@ class AppStrings {
   String get monthsJan=>['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'].join('|');
   String months(int i, bool ru)=>ru?['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][i]:['January','February','March','April','May','June','July','August','September','October','November','December'][i];
   String get profileTitle=>ru?'Профиль':'Profile';
+  String get addPhone=>ru?'Добавить номер телефона':'Add phone number';
+  String get phoneAdded=>ru?'Телефон добавлен ✓':'Phone added ✓';
+  String get getCode=>ru?'Получить код':'Get code';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -1898,13 +1901,42 @@ class _ChatState extends State<ChatPage>{
   String _dayKey(DateTime d)=>d.year.toString().padLeft(4,'0')+d.month.toString().padLeft(2,'0')+d.day.toString().padLeft(2,'0');
   Future<void> showContact(BuildContext context)async{
     final s=S(context);
-    // Личный чат: открываем полноценный профиль человека (Telegram-стиль)
-    if(!widget.chat.isGroup&&peerId.isNotEmpty){
-      await Navigator.push(context,MaterialPageRoute(builder:(_)=>UserProfilePage(
-        userId:peerId,
-        onMessage:(u)async{if(context.mounted)Navigator.pop(context);},
-        onCall:(u,video)async{if(context.mounted){Navigator.pop(context);openCall(context,video);}},
-      )));
+    // Личный чат: полноценный профиль человека (Telegram-стиль). Никаких «участников» в личных чатах.
+    if(!widget.chat.isGroup){
+      String pid=peerId;
+      if(pid.isEmpty){
+        try{final pr=await Api.get('/chats/'+widget.chat.id+'/peer');pid=(pr['id']??'').toString();}catch(_){}
+      }
+      if(pid.isNotEmpty&&context.mounted){
+        await Navigator.push(context,MaterialPageRoute(builder:(_)=>UserProfilePage(
+          userId:pid,
+          onMessage:(u)async{if(context.mounted)Navigator.pop(context);},
+          onCall:(u,video)async{if(context.mounted){Navigator.pop(context);openCall(context,video);}},
+        )));
+        return;
+      }
+      if(!context.mounted)return;
+      // fallback без «участников»: только аватар, имя и действия
+      showModalBottomSheet(
+        context:context,
+        showDragHandle:true,
+        builder:(_)=>SafeArea(
+          child:Padding(
+            padding:const EdgeInsets.fromLTRB(20,8,20,24),
+            child:Column(
+              mainAxisSize:MainAxisSize.min,
+              children:[
+                Avatar(name:widget.chat.name,size:84),
+                const SizedBox(height:12),
+                Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
+                const SizedBox(height:15),
+                ListTile(leading:Icon(Icons.auto_awesome_rounded),title:Text(s.effects),subtitle:Text(s.intensity,style:TextStyle(color:context.cMut)),onTap:(){Navigator.pop(context);showEffects(context);}),
+                ListTile(leading:const Icon(Icons.refresh_rounded),title:Text(s.refresh),onTap:(){Navigator.pop(context);setState(()=>loading=true);load();}),
+              ],
+            ),
+          ),
+        ),
+      );
       return;
     }
     // Группа: лист с участниками и действиями
@@ -3066,6 +3098,15 @@ class _ProfilePageState extends State<ProfilePage>{
     final s=S(context);
     final target=purpose=='phone'?phone:email;
     if(target.isEmpty){snack(s.ru?'Сначала укажи цель подтверждения':'Nothing to verify');return;}
+    final ok=await _codeDialog(purpose,target);
+    if(ok&&mounted){
+      snack(purpose=='phone'?s.phoneVerifiedOk:s.emailVerifiedOk);
+      _load();
+    }
+  }
+  // Диалог ввода кода — общий для подтверждения и добавления телефона
+  Future<bool> _codeDialog(String purpose,String target)async{
+    final s=S(context);
     String? dev;final ctl=TextEditingController();bool busy=false;
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setD)=>AlertDialog(
       backgroundColor:context.cSurf,
@@ -3103,10 +3144,35 @@ class _ProfilePageState extends State<ProfilePage>{
         },child:Text(s.regVerify)),
       ],
     )));
-    if(ok==true&&mounted){
-      snack(purpose=='phone'?s.phoneVerifiedOk:s.emailVerifiedOk);
-      _load();
-    }
+    return ok==true;
+  }
+  // v1.3.1: добавить телефон (аккаунты, созданные до v1.3.0): номер → код → сервер ставит phone+phone_verified
+  Future<void> _addPhone()async{
+    final s=S(context);
+    final ctl=TextEditingController();
+    final raw=await showDialog<String>(context:context,builder:(ctx)=>AlertDialog(
+      backgroundColor:context.cSurf,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+      title:Row(children:[const Icon(Icons.call_outlined,size:20,color:green),const SizedBox(width:8),Expanded(child:Text(s.addPhone,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17)))]),
+      content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(s.regPhoneSub,style:TextStyle(color:context.cMut,fontSize:12.5)),
+        const SizedBox(height:12),
+        TextField(controller:ctl,autofocus:true,keyboardType:TextInputType.phone,textInputAction:TextInputAction.done,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w800),decoration:InputDecoration(hintText:s.regPhoneHint,filled:true,fillColor:context.cBg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide(color:context.cLine)))),
+      ]),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(ctx),child:Text(s.cancel)),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,ctl.text.trim()),child:Text(s.getCode)),
+      ],
+    ));
+    if(raw==null)return;
+    final digits=raw.replaceAll(RegExp(r'[^\d+]'),'');
+    if(digits.replaceFirst('+','').length<7){snack(s.ru?'Проверь номер телефона':'Check the phone number');return;}
+    final ok=await _codeDialog('phone',digits);
+    if(!ok)return;
+    try{
+      await Api.put('/me/phone',{'phone':digits});
+      if(mounted){snack(s.phoneAdded);_load();}
+    }catch(e){snack(friendlyError(e,s));}
   }
   Widget _badge(AppStrings s,{required bool ok,required String label,required Color color,required IconData icon,VoidCallback? onTap})=>InkWell(
     onTap:onTap,
@@ -3180,6 +3246,13 @@ class _ProfilePageState extends State<ProfilePage>{
               title:Text(email.isEmpty?'—':email,style:const TextStyle(fontWeight:FontWeight.w700),maxLines:1,overflow:TextOverflow.ellipsis),
               subtitle:Text(s.emailLabel+(emailVerified?' · '+s.verifiedBadge:''),style:TextStyle(color:context.cMut,fontSize:12)),
               trailing:emailVerified?Icon(Icons.verified_rounded,size:19,color:green):(TextButton(onPressed:()=>_verify('email'),child:Text(s.verifyEmailTitle,style:const TextStyle(fontSize:11)))),
+            ),
+            if(phone.isEmpty)ListTile(
+              leading:_IconBadge(icon:Icons.call_outlined,color:green),
+              title:Text(s.addPhone,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.phoneLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+              trailing:Icon(Icons.add_circle_outline_rounded,color:green),
+              onTap:_addPhone,
             ),
             if(phone.isNotEmpty)ListTile(
               leading:_IconBadge(icon:Icons.call_outlined,color:green),

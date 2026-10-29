@@ -25,22 +25,72 @@ function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e||'')
 function validPhone(p){return /^\+\d{7,15}$/.test(String(p||''));}
 // кто сейчас подключён по сокету (для «в сети» в профилях)
 const __online=new Set();
-// Отправка кода: email через SMTP (если задан), SMS через произвольный шлюз (SMS_API_URL/SMS_API_KEY).
-// Если ничего не задано — код вернётся в ответе (devCode): флоу работает сразу, доставка подключается ключами.
-async function sendCode(purpose,target,code){
+// === v1.3.1: доставка кодов — реальные шлюзы ===
+// EMAIL (достаточно одного): RESEND_API_KEY (resend.com — 100 писем/день бесплатно),
+//   BREVO_API_KEY (brevo.com — 300/день), SENDGRID_API_KEY (sendgrid.com — 100/день)
+//   или SMTP_HOST+SMTP_USER+SMTP_PASS (например Gmail с паролем приложения, порт 465/587).
+//   MAIL_FROM — адрес отправителя; для Resend без своего домена по умолчанию onboarding@resend.dev.
+// SMS (достаточно одного): SMSRU_API_ID (sms.ru — на СВОЙ номер бесплатно, на другие ~1-2 руб.),
+//   TWILIO_SID+TWILIO_TOKEN+TWILIO_FROM (twilio.com — trial даёт стартовый кредит)
+//   или SMS_API_URL+SMS_API_KEY (произвольный шлюз: POST {to,text}).
+// Ничего не задано — код показывается в приложении (delivery:'none', devCode): флоу работает сразу.
+const _mailFrom=()=>String(process.env.MAIL_FROM||'onboarding@resend.dev').trim();
+async function sendEmailCode(to,text){
  try{
-  if(purpose==='email'&&process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS){
+  const subject='vibe<3 — код подтверждения';
+  if(process.env.RESEND_API_KEY){
+    const r=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+process.env.RESEND_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({from:_mailFrom(),to:[to],subject,text})});
+    if(r.ok)return 'resend'; console.error('resend fail',r.status,await r.text().catch(()=>''));
+  }
+  if(process.env.BREVO_API_KEY){
+    const r=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers:{'api-key':process.env.BREVO_API_KEY,'Content-Type':'application/json',accept:'application/json'},body:JSON.stringify({sender:{email:_mailFrom()},to:[{email:to}],subject,textContent:text})});
+    if(r.ok)return 'brevo'; console.error('brevo fail',r.status,await r.text().catch(()=>''));
+  }
+  if(process.env.SENDGRID_API_KEY){
+    const r=await fetch('https://api.sendgrid.com/v3/mail/send',{method:'POST',headers:{Authorization:'Bearer '+process.env.SENDGRID_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({personalizations:[{to:[{email:to}]}],from:{email:_mailFrom()},subject,content:[{type:'text/plain',value:text}]})});
+    if(r.ok)return 'sendgrid'; console.error('sendgrid fail',r.status,await r.text().catch(()=>''));
+  }
+  if(process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS){
     const nm=require('nodemailer');
     const tr=nm.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:String(process.env.SMTP_PORT||'')==='465',auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}});
-    await tr.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:target.slice(6),subject:'vibe<3 — код подтверждения',text:'Код: '+code+' (действует 15 минут)'});
+    await tr.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to,subject,text});
     return 'smtp';
   }
-  if(purpose==='phone'&&process.env.SMS_API_URL&&process.env.SMS_API_KEY){
-    const r=await fetch(process.env.SMS_API_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.SMS_API_KEY},body:JSON.stringify({to:target.slice(6),text:'vibe<3: код '+code})});
-    if(r.ok)return 'sms';
-  }
- }catch(e){console.error('sendCode failed',e);}
+ }catch(e){console.error('sendEmailCode failed',e);}
  return 'none';
+}
+async function sendSmsCode(to,text){
+ try{
+  if(process.env.SMSRU_API_ID){
+    const p=new URLSearchParams({api_id:process.env.SMSRU_API_ID,to:to.replace(/^\+/,''),msg:text,json:1});
+    const r=await fetch('https://sms.ru/sms/send?'+p.toString());
+    const j=r.ok?await r.json().catch(()=>null):null;
+    if(j&&j.status==='OK')return 'smsru'; console.error('smsru fail',r.status,j&&j.status_text);
+  }
+  if(process.env.TWILIO_SID&&process.env.TWILIO_TOKEN&&process.env.TWILIO_FROM){
+    const auth=Buffer.from(process.env.TWILIO_SID+':'+process.env.TWILIO_TOKEN).toString('base64');
+    const r=await fetch('https://api.twilio.com/2010-04-01/Accounts/'+process.env.TWILIO_SID+'/Messages.json',{method:'POST',headers:{Authorization:'Basic '+auth,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({To:to,From:process.env.TWILIO_FROM,Body:text})});
+    if(r.ok)return 'twilio'; console.error('twilio fail',r.status,await r.text().catch(()=>''));
+  }
+  if(process.env.SMS_API_URL&&process.env.SMS_API_KEY){
+    const r=await fetch(process.env.SMS_API_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.SMS_API_KEY},body:JSON.stringify({to,text})});
+    if(r.ok)return 'custom'; console.error('custom sms fail',r.status);
+  }
+ }catch(e){console.error('sendSmsCode failed',e);}
+ return 'none';
+}
+async function sendCode(purpose,target,code){
+ const emailText='Ваш код подтверждения vibe<3: '+code+'\nКод действует 15 минут. Никому его не сообщайте.\nЕсли вы не запрашивали код — просто проигнорируйте это письмо.';
+ if(purpose==='email')return sendEmailCode(target.slice(6),emailText);
+ if(purpose==='phone')return sendSmsCode(target.slice(6),'vibe<3: код подтверждения '+code+' (действует 15 минут)');
+ return 'none';
+}
+// Ограничение частоты: не чаще 1 раза в 30 секунд, максимум 5 кодов в час на один адрес/номер
+const _rlMap=new Map();
+function rateOk(k){
+ const now=Date.now();const a=(_rlMap.get(k)||[]).filter(t=>now-t<3600000);
+ if(a.length>=5||(a.length&&now-a[a.length-1]<30000)){_rlMap.set(k,a);return false;}
+ a.push(now);_rlMap.set(k,a);return true;
 }
 function normTarget(purpose,raw){
  if(purpose==='email'){const e=String(raw||'').trim().toLowerCase();return validEmail(e)?('email:'+e):null;}
@@ -51,6 +101,13 @@ function normTarget(purpose,raw){
 app.use(cors());
 app.use(express.json({limit:'10mb'}));
 app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true});}catch(e){console.error('health',e);res.status(503).json({ok:false,database:false});}});
+
+// v1.3.1: какие каналы доставки кодов подключены (только флаги, без секретов)
+app.get('/delivery/status',(_,res)=>res.json({
+ email:{resend:!!process.env.RESEND_API_KEY,brevo:!!process.env.BREVO_API_KEY,sendgrid:!!process.env.SENDGRID_API_KEY,smtp:!!(process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS)},
+ sms:{smsru:!!process.env.SMSRU_API_ID,twilio:!!(process.env.TWILIO_SID&&process.env.TWILIO_TOKEN&&process.env.TWILIO_FROM),custom:!!(process.env.SMS_API_URL&&process.env.SMS_API_KEY)},
+ hint:'EMAIL: RESEND_API_KEY или BREVO_API_KEY или SENDGRID_API_KEY или SMTP_HOST/SMTP_USER/SMTP_PASS (+MAIL_FROM). SMS: SMSRU_API_ID (на свой номер бесплатно) или TWILIO_SID/TWILIO_TOKEN/TWILIO_FROM. Ключи добавляются в Render -> Environment -> Environment Variables.'
+}));
 
 // --- /debug/log: журнал ошибок с телефонов (серый экран -> читаемый текст) ---
 const debugLogs=[];
@@ -69,6 +126,7 @@ app.post('/auth/request-code',async(req,res)=>{try{
  const purpose=String(req.body?.purpose||'');
  const target=normTarget(purpose,req.body?.target);
  if(!target)return res.status(400).json({error:purpose==='phone'?'invalid_phone':'invalid_email'});
+ if(!rateOk(target))return res.status(429).json({error:'too_many_requests'});
  const code=String(Math.floor(100000+Math.random()*900000));
  await pool.query(`INSERT INTO verify_codes(target,code,purpose,verified,created_at) VALUES($1,$2,$3,FALSE,now())
    ON CONFLICT(target) DO UPDATE SET code=$2,purpose=$3,verified=FALSE,created_at=now()`,[target,code,purpose]);
@@ -176,6 +234,32 @@ app.put('/me',auth,async(req,res)=>{try{
  if(e.code==='22P02') return res.status(400).json({error:'invalid_user_id'});
  res.status(500).json({error:'profile_update_failed'});
 }});
+
+// v1.3.1: добавить/поменять телефон (нужен подтверждённый код: request-code purpose=phone → verify-code → этот вызов)
+app.put('/me/phone',auth,async(req,res)=>{try{
+ const phone=normPhone(req.body?.phone||'');
+ if(!validPhone(phone))return res.status(400).json({error:'invalid_phone'});
+ const pc=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['phone:'+phone]);
+ if(!pc.rowCount)return res.status(403).json({error:'phone_not_verified'});
+ const dup=await pool.query('SELECT id FROM users WHERE phone=$1 AND id<>$2',[phone,req.user.id]);
+ if(dup.rowCount)return res.status(409).json({error:'phone_taken'});
+ const r=await pool.query(`UPDATE users SET phone=$1,phone_verified=TRUE WHERE id=$2 RETURNING ${_ME_COLS}`,[phone,req.user.id]);
+ if(!r.rowCount)return res.status(404).json({error:'user_not_found'});
+ res.json(r.rows[0]);
+}catch(e){console.error('phone_update_failed',e);res.status(500).json({error:'server_error'});}});
+
+// v1.3.1: добавить/поменять почту (нужен подтверждённый код: request-code purpose=email → verify-code → этот вызов)
+app.put('/me/email',auth,async(req,res)=>{try{
+ const email=String(req.body?.email||'').trim().toLowerCase();
+ if(!validEmail(email))return res.status(400).json({error:'invalid_email'});
+ const ec=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['email:'+email]);
+ if(!ec.rowCount)return res.status(403).json({error:'email_not_verified'});
+ const dup=await pool.query('SELECT id FROM users WHERE email=$1 AND id<>$2',[email,req.user.id]);
+ if(dup.rowCount)return res.status(409).json({error:'email_taken'});
+ const r=await pool.query(`UPDATE users SET email=$1,email_verified=TRUE WHERE id=$2 RETURNING ${_ME_COLS}`,[email,req.user.id]);
+ if(!r.rowCount)return res.status(404).json({error:'user_not_found'});
+ res.json(r.rows[0]);
+}catch(e){console.error('email_update_failed',e);res.status(500).json({error:'server_error'});}});
 
 app.get('/users',auth,async(req,res)=>{const q=String(req.query.q||'').trim();const like='%'+q+'%';const r=await pool.query('SELECT id,username,display_name,avatar_url FROM users WHERE id<>$1 AND (username ILIKE $2 OR display_name ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,like]);res.json(r.rows);});
 
@@ -450,7 +534,9 @@ async function migrate(){
       purpose TEXT NOT NULL,
       verified BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`
+    )`,
+    // v1.3.1: старые личные чаты могли создаться с флагом группы — из-за этого «Участники» и запрет звонков; 2 участника = личный чат
+    'UPDATE chats SET is_group=false WHERE is_group=true AND (SELECT COUNT(*) FROM chat_members cmx WHERE cmx.chat_id=chats.id)=2'
   ];
   for(const sql of statements){
     try{await pool.query(sql);}
