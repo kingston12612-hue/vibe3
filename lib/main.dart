@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' show PlatformDispatcher;
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -18,11 +19,16 @@ const brandGrad=[pink,purple];
 
 Future<void> main()async{
   WidgetsFlutterBinding.ensureInitialized();
+  // Серый экран в релизе = молчаливый краш: ловим всё и показываем/отправляем текст
+  FlutterError.onError=(d){FlutterError.presentError(d);Api.debugLog('FLUTTER: ${d.exception} || ${d.stack}');};
+  PlatformDispatcher.instance.onError=(e,st){Api.debugLog('UNCAUGHT: $e || $st');return true;};
+  ErrorWidget.builder=(d)=>Container(color:const Color(0xFF14141C),alignment:Alignment.center,padding:const EdgeInsets.all(16),child:SingleChildScrollView(child:Text('ОШИБКА ЭКРАНА (пришли скрин разработчику):\n$d',style:const TextStyle(color:Color(0xFFFF6B81),fontSize:12))));
   try{
     final p=await SharedPreferences.getInstance();
     final u=p.getString('server_url');
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
   }catch(_){}
+  Api.debugLog('app start v1.0.8 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -31,6 +37,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.0.8'})).timeout(const Duration(seconds:5));}catch(_){}}
  // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
  static Future<void> _ensureAwake()async{
   for(int i=0;i<8;i++){
@@ -63,6 +70,8 @@ class AppStrings {
   String get newChat=>ru?'Новый чат':'New chat';
   String get noChats=>ru?'Пока нет чатов':'No chats yet';
   String get noChatsSub=>ru?'Найди человека и начни разговор.':'Find someone and start a conversation.';
+  String get noMessages=>ru?'Сообщений пока нет':'No messages yet';
+  String get noMessagesSub=>ru?'Напиши первым — дойдёт мгновенно.':'Say hi — it arrives instantly.';
   String get noPeople=>ru?'Ничего не найдено':'No people found';
   String get noPeopleSub=>ru?'Попробуй имя или @username.':'Try a name or @username.';
   String get findPeopleHint=>ru?'имя или @username':'name or @username';
@@ -99,7 +108,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.0.7';
+  String get version=>'v1.0.8';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -310,6 +319,7 @@ class _AuthState extends State<AuthScreen>{
     setState(()=>busy=true);
     try{
       final d=await Api.post('/auth/'+(register?'register':'login'),register?{'email':e,'name':n,'username':u,'password':pw}:{'email':e,'password':pw});
+      Api.debugLog('${register?'register':'login'} ok user=$u');
       await widget.onLogin(e,(d['user']['name']??n).toString(),d['token'].toString());
     }catch(e){snack(friendlyError(e,s));}
     finally{if(mounted)setState(()=>busy=false);}
@@ -1111,7 +1121,7 @@ class _ChatState extends State<ChatPage>{
   bool loading=true,sending=false,peerTyping=false,peerOnline=false;IO.Socket? socket;String myId='',peerId='';
   int effect=0;double fxIntensity=.55;Timer? typingTimer,typingClear;
 
-  @override void initState(){super.initState();load();restoreFx();}
+  @override void initState(){super.initState();load();restoreFx();Api.debugLog('chat open id=${widget.chat.id} name=${widget.chat.name}');}
   @override void dispose(){socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();typingTimer?.cancel();typingClear?.cancel();super.dispose();}
   Future<void> restoreFx()async{
     final p=await SharedPreferences.getInstance();
@@ -1379,7 +1389,7 @@ class _ChatState extends State<ChatPage>{
                   loading
                     ?const Center(child:CircularProgressIndicator())
                     :msgs.isEmpty
-                      ?EmptyState(icon:Icons.auto_awesome_outlined,title:s.joinVibe,sub:s.noChatsSub)
+                      ?EmptyState(icon:Icons.auto_awesome_outlined,title:s.noMessages,sub:s.noMessagesSub)
                       :ListView.builder(
                         controller:scroll,
                         padding:const EdgeInsets.fromLTRB(14,18,14,14),
