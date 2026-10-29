@@ -57,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.2.0 api=$apiBase');
+  Api.debugLog('app start v1.3.0 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -66,7 +66,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
- static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.2.0'})).timeout(const Duration(seconds:5));}catch(_){}}
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.3.0'})).timeout(const Duration(seconds:5));}catch(_){}}
  // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
  static Future<void> _ensureAwake()async{
   for(int i=0;i<8;i++){
@@ -138,7 +138,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.2.0';
+  String get version=>'v1.3.0';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -273,6 +273,49 @@ class AppStrings {
   String get secShotsSub2=>ru?'Нельзя сделать скриншот или запись экрана':'Screenshots and screen recording are blocked';
   String get saveChanges=>ru?'Сохранить изменения':'Save changes';
   String get profileUpdated=>ru?'Профиль обновлён':'Profile updated';
+  // --- v1.3.0: контакты, чужой профиль, верификация, bio ---
+  String get tabContacts=>ru?'Контакты':'Contacts';
+  String get tabAllPeople=>ru?'Все люди':'Everyone';
+  String get noContacts=>ru?'Пока нет контактов':'No contacts yet';
+  String get noContactsSub=>ru?'Открой «Все люди», найди человека и добавь в контакты':'Open Everyone, find a person and add them';
+  String get addContact=>ru?'В контакты':'Add contact';
+  String get inContacts=>ru?'В контактах':'In contacts';
+  String get removeContact=>ru?'Удалить из контактов':'Remove from contacts';
+  String get contactAdded=>ru?'Добавлено в контакты':'Added to contacts';
+  String get contactRemoved=>ru?'Удалено из контактов':'Removed from contacts';
+  String get writeMsg=>ru?'Написать':'Message';
+  String get aboutBio=>ru?'О себе':'Bio';
+  String get bioHint=>ru?'Пара слов о себе':'A few words about you';
+  String get bioEditHint=>ru?'Расскажи о себе':'Tell something about yourself';
+  String get phoneLabel=>ru?'Телефон':'Phone';
+  String get verifiedBadge=>ru?'подтверждено':'verified';
+  String get unverifiedBadge=>ru?'не подтверждено':'not verified';
+  String get verifyEmailTitle=>ru?'Подтвердить почту':'Verify email';
+  String get verifyPhoneTitle=>ru?'Подтвердить телефон':'Verify phone';
+  String get lastSeenRecent=>ru?'был(а) недавно':'last seen recently';
+  String get lastSeenLong=>ru?'был(а) давно':'last seen a while ago';
+  String get regPhoneTitle=>ru?'Твой номер телефона':'Your phone number';
+  String get regPhoneSub=>ru?'По номеру тебя найдут контакты. Пришлём код подтверждения.':'People will find you by it. We will send a confirmation code.';
+  String get regPhoneHint=>ru?'+7 900 000-00-00':'+7 900 000-00-00';
+  String get regEmailTitle=>ru?'Подтверди почту':'Confirm your email';
+  String get regCodeTitle=>ru?'Введи код':'Enter the code';
+  String get regCodeSentPhone=>ru?'Код отправлен на номер':'Code sent to';
+  String get regCodeSentEmail=>ru?'Код отправлен на':'Code sent to';
+  String get regCodeDevNote=>ru?'SMS/почтовый шлюз не подключён — тестовый код ниже. Владелец подключит настоящую доставку ключами.':'No SMS/mail gateway yet — dev code below. Real delivery is coming.';
+  String get regCodeResend=>ru?'Отправить код ещё раз':'Send the code again';
+  String get regResendIn=>ru?'Отправить ещё раз через':'Resend in';
+  String get regVerify=>ru?'Подтвердить':'Verify';
+  String get codeInvalid=>ru?'Неверный код':'Wrong code';
+  String get codeExpired=>ru?'Код устарел, отправь новый':'Code expired, request a new one';
+  String get phoneTaken=>ru?'Этот номер уже занят':'Phone already registered';
+  String get emailVerifiedOk=>ru?'Почта подтверждена ✓':'Email verified ✓';
+  String get phoneVerifiedOk=>ru?'Телефон подтверждён ✓':'Phone verified ✓';
+  String get loginPhoneHint=>ru?'почта, @username или телефон':'email, @username or phone';
+  String get secChat=>ru?'Написать':'Message';
+  String get joinedDate=>ru?'В vibe<3 с':'On vibe<3 since';
+  String get monthsJan=>['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'].join('|');
+  String months(int i, bool ru)=>ru?['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'][i]:['January','February','March','April','May','June','July','August','September','October','November','December'][i];
+  String get profileTitle=>ru?'Профиль':'Profile';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -347,8 +390,8 @@ class _VibeState extends State<VibeApp> with WidgetsBindingObserver{
   Future<void> setTheme(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('light',v);setState(()=>light=v);}
   Future<void> setLanguage(String v)async{final p=await SharedPreferences.getInstance();await p.setString('language',v);setState(()=>language=v);}
   Future<void> setNotifications(bool v)async{final p=await SharedPreferences.getInstance();await p.setBool('notifications',v);setState(()=>notifications=v);}
-  Future<Map<String,dynamic>> updateProfile(String n,String u,String? avatar)async{
-    final d=await Api.put('/me',{'name':n,'username':u,if(avatar!=null)'avatar':avatar});
+  Future<Map<String,dynamic>> updateProfile(String n,String u,String? avatar,{String? bio})async{
+    final d=await Api.put('/me',{'name':n,'username':u,if(avatar!=null)'avatar':avatar,if(bio!=null)'bio':bio});
     final p=await SharedPreferences.getInstance();
     final nn=(d['display_name']??n).toString();final uu=(d['username']??u).toString();
     await p.setString('name',nn);await p.setString('username',uu);
@@ -376,12 +419,17 @@ class AuthScreen extends StatefulWidget{
 }
 class _AuthState extends State<AuthScreen>{
   bool register=false,busy=false,show1=false,show2=false;
-  final email=TextEditingController(),name=TextEditingController(),username=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController();
+  // Мастер регистрации v1.3.0: форма → код из SMS (телефон) → код из письма (почта) → аккаунт создан
+  String regStage='form';String codePurpose='phone';String? devCode;String codeTarget='';
+  bool phoneOk=false,emailOk=false;int resendIn=0;Timer? resendTimer;
+  final email=TextEditingController(),name=TextEditingController(),username=TextEditingController(),pass=TextEditingController(),pass2=TextEditingController(),phone=TextEditingController(),code=TextEditingController();
   @override void initState(){
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
-  @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();super.dispose();}
+  @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();phone.dispose();code.dispose();resendTimer?.cancel();super.dispose();}
+  String normPhoneLocal(String p){String s=p.replaceAll(RegExp(r'[^0-9+]'),'');if(s.startsWith('8')&&s.length==11)s='+7'+s.substring(1);if(s.isNotEmpty&&!s.startsWith('+'))s='+$s';return s;}
+  bool phoneValid(String p)=>RegExp(r'^\+\d{10,15}$').hasMatch(p);
   Future<void> _editServer()async{
     final c=TextEditingController(text:apiBase);
     final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
@@ -446,17 +494,80 @@ class _AuthState extends State<AuthScreen>{
   }
   Future<void> submit()async{
     final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');
-    if(!e.contains('@')||!e.contains('.')){snack(s.emailInvalid);return;}
-    if(pw.length<6){snack(s.passwordShort);return;}
-    if(register&&n.length<2){snack(s.nameRequired);return;}
-    if(register&&!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(u)){snack(s.usernameRules);return;}
-    if(register&&pass2.text!=pw){snack(s.passwordsMismatch);return;}
+    if(!register){
+      if(pw.length<6){snack(s.passwordShort);return;}
+      setState(()=>busy=true);
+      try{
+        final d=await Api.post('/auth/login',{'email':e,'password':pw});
+        Api.debugLog('login ok');
+        await widget.onLogin(e,(d['user']['name']??n).toString(),d['token'].toString());
+      }catch(err){snack(friendlyError(err,s));}
+      finally{if(mounted)setState(()=>busy=false);}
+      return;
+    }
+    // --- регистрация: форма → телефон-код → почта-код → create ---
+    if(regStage=='form'){
+      if(n.length<2){snack(s.nameRequired);return;}
+      if(!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(u)){snack(s.usernameRules);return;}
+      final ph=normPhoneLocal(phone.text.trim());
+      if(!phoneValid(ph)){snack(s.ru?'Введи номер в формате +7 900 000-00-00':'Enter phone like +7 900 000-00-00');return;}
+      if(!e.contains('@')||!e.contains('.')){snack(s.emailInvalid);return;}
+      if(pw.length<6){snack(s.passwordShort);return;}
+      if(pass2.text!=pw){snack(s.passwordsMismatch);return;}
+      await requestCode('phone');
+      return;
+    }
+    await verifyCode();
+  }
+  Future<void> requestCode(String purpose)async{
+    final s=S(context);final ph=normPhoneLocal(phone.text.trim());final e=email.text.trim().toLowerCase();
     setState(()=>busy=true);
     try{
-      final d=await Api.post('/auth/'+(register?'register':'login'),register?{'email':e,'name':n,'username':u,'password':pw}:{'email':e,'password':pw});
-      Api.debugLog('${register?'register':'login'} ok user=$u');
-      await widget.onLogin(e,(d['user']['name']??n).toString(),d['token'].toString());
-    }catch(e){snack(friendlyError(e,s));}
+      final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':purpose=='phone'?ph:e});
+      if(mounted)setState((){
+        regStage='code';codePurpose=purpose;
+        devCode=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString();
+        codeTarget=purpose=='phone'?ph:e;code.text='';
+        resendIn=30;
+      });
+      resendTimer?.cancel();
+      resendTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted){resendTimer?.cancel();return;}if(resendIn<=1){resendTimer?.cancel();if(mounted)setState(()=>resendIn=0);}else setState(()=>resendIn--);});
+    }catch(err){snack(friendlyError(err,s));}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> verifyCode()async{
+    final s=S(context);final ph=normPhoneLocal(phone.text.trim());final e=email.text.trim().toLowerCase();
+    final c=code.text.trim();
+    if(c.length!=6){snack(s.codeInvalid);return;}
+    setState(()=>busy=true);
+    try{
+      await Api.post('/auth/verify-code',{'purpose':codePurpose,'target':codePurpose=='phone'?ph:e,'code':c});
+      if(!mounted)return;
+      if(codePurpose=='phone'){
+        setState(() {phoneOk=true;devCode=null;});
+        await requestCode('email');
+      }else{
+        setState(() {emailOk=true;});
+        await createAccount();
+      }
+    }catch(err){
+      snack(friendlyError(err,s));
+    }
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> createAccount()async{
+    final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');final ph=normPhoneLocal(phone.text.trim());
+    setState(()=>busy=true);
+    try{
+      final d=await Api.post('/auth/register',{'email':e,'name':n,'username':u,'password':pw,'phone':ph});
+      Api.debugLog('register ok user=$u');
+      await widget.onLogin(e,n,d['token'].toString());
+    }catch(err){
+      final x=err.toString();
+      // номер/почта уже заняты — возвращаем на форму
+      if(x.contains('email_exists')||x.contains('username_taken')||x.contains('phone_taken')){if(mounted)setState(()=>regStage='form');}
+      snack(friendlyError(err,s));
+    }
     finally{if(mounted)setState(()=>busy=false);}
   }
   @override Widget build(BuildContext context){
@@ -510,11 +621,21 @@ class _AuthState extends State<AuthScreen>{
                         Text(register?s.joinVibe:s.signInContinue,style:TextStyle(color:context.cMut,fontSize:14,height:1.45)),
                         const SizedBox(height:26),
                         Row(children:[
-                          Expanded(child:_AuthMode(label:s.signIn,active:!register,onTap:busy?null:(){FocusScope.of(context).unfocus();setState(()=>register=false);})),
+                          Expanded(child:_AuthMode(label:s.signIn,active:!register,onTap:busy?null:(){FocusScope.of(context).unfocus();setState(() {register=false;regStage='form';});})),
                           const SizedBox(width:10),
                           Expanded(child:_AuthMode(label:s.createAccount,active:register,onTap:busy?null:(){FocusScope.of(context).unfocus();setState(()=>register=true);})),
                         ]),
                         const SizedBox(height:20),
+                        if(register&&regStage=='code')
+                          _RegCodeStep(
+                            purpose:codePurpose,target:codeTarget,devCode:devCode,busy:busy,
+                            controller:code,
+                            resendIn:resendIn,
+                            phoneDone:phoneOk,
+                            onResend:resendIn>0||busy?null:()=>requestCode(codePurpose),
+                            onBack:busy?null:(){resendTimer?.cancel();setState(() {regStage='form';devCode=null;code.text='';});},
+                          )
+                        else ...[
                         AnimatedSwitcher(
                           duration:const Duration(milliseconds:280),
                           switchInCurve:Curves.easeOutCubic,
@@ -526,10 +647,12 @@ class _AuthState extends State<AuthScreen>{
                                 const SizedBox(height:11),
                                 _AuthField(controller:username,icon:Icons.alternate_email_rounded,hint:s.usernameHint),
                                 const SizedBox(height:11),
+                                _AuthField(controller:phone,icon:Icons.call_outlined,hint:s.regPhoneHint,keyboardType:TextInputType.phone),
+                                const SizedBox(height:11),
                               ])
                             :const SizedBox.shrink(key:ValueKey('login-fields')),
                         ),
-                        _AuthField(controller:email,icon:Icons.mail_outline_rounded,hint:s.email,keyboardType:TextInputType.emailAddress),
+                        _AuthField(controller:email,icon:Icons.mail_outline_rounded,hint:register?s.email:s.loginPhoneHint,keyboardType:TextInputType.emailAddress),
                         const SizedBox(height:11),
                         _AuthField(
                           controller:pass,
@@ -558,7 +681,7 @@ class _AuthState extends State<AuthScreen>{
                             :const SizedBox.shrink(key:ValueKey('no-repeat-password')),
                         ),
                         const SizedBox(height:18),
-                        _GradientButton(height:56,radius:17,busy:busy,onTap:submit,icon:register?Icons.arrow_forward_rounded:Icons.login_rounded,label:register?s.createAccount:s.signIn),
+                        _GradientButton(height:56,radius:17,busy:busy,onTap:submit,icon:register?(regStage=='code'?Icons.verified_outlined:Icons.arrow_forward_rounded):Icons.login_rounded,label:register?(regStage=='code'?s.regVerify:s.createAccount):s.signIn),
                         const SizedBox(height:16),
                         Row(
                           mainAxisAlignment:MainAxisAlignment.center,
@@ -584,10 +707,11 @@ class _AuthState extends State<AuthScreen>{
                         const SizedBox(height:22),
                         Center(
                           child:TextButton(
-                            onPressed:busy?null:(){FocusScope.of(context).unfocus();setState(()=>register=!register);},
+                            onPressed:busy?null:(){FocusScope.of(context).unfocus();setState(() {register=!register;regStage='form';});},
                             child:Text(register?s.alreadyHave:s.newToVibe,style:const TextStyle(fontWeight:FontWeight.w800)),
                           ),
                         ),
+                        ],
                       ],
                     ),
                   ),
@@ -601,6 +725,52 @@ class _AuthState extends State<AuthScreen>{
   }
 }
 
+// ===== Экран ввода кода подтверждения (SMS / почта) в мастере регистрации =====
+class _RegCodeStep extends StatelessWidget{
+  final String purpose,target;final String? devCode;final bool busy;final bool phoneDone;
+  final TextEditingController controller;final int resendIn;final VoidCallback? onResend,onBack;
+  const _RegCodeStep({required this.purpose,required this.target,required this.devCode,required this.busy,required this.controller,required this.resendIn,required this.phoneDone,this.onResend,this.onBack});
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return Container(key:const ValueKey('reg-code-step'),margin:const EdgeInsets.only(bottom:4),padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:context.cSurf,borderRadius:BorderRadius.circular(24),border:Border.all(color:context.cLine)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Row(children:[
+        Container(width:44,height:44,decoration:BoxDecoration(color:(purpose=='phone'?purple:pink).withOpacity(.15),borderRadius:BorderRadius.circular(14)),child:Icon(purpose=='phone'?Icons.call_outlined:Icons.mark_email_unread_outlined,color:purpose=='phone'?purple:pink)),
+        const SizedBox(width:12),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(purpose=='phone'?s.regPhoneTitle:s.regEmailTitle,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900)),
+          const SizedBox(height:2),
+          Text((purpose=='phone'?s.regCodeSentPhone:s.regCodeSentEmail)+' '+target,style:TextStyle(color:context.cMut,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
+        ])),
+      ]),
+      if(phoneDone)...[
+        const SizedBox(height:12),
+        Row(children:[Icon(Icons.check_circle_rounded,size:16,color:green),const SizedBox(width:6),Text(s.phoneVerifiedOk,style:TextStyle(color:green,fontSize:12.5,fontWeight:FontWeight.w800))]),
+      ],
+      const SizedBox(height:16),
+      TextField(
+        controller:controller,enabled:!busy,autofocus:true,maxLength:6,
+        keyboardType:TextInputType.number,
+        textAlign:TextAlign.center,
+        style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,letterSpacing:12),
+        decoration:InputDecoration(hintText:'——',counterText:'',filled:true,fillColor:context.cBg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:context.cLine)),enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:context.cLine)),focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:pink,width:1.6))),
+      ),
+      if(devCode!=null)...[
+        const SizedBox(height:12),
+        Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:purple.withOpacity(.10),borderRadius:BorderRadius.circular(14),border:Border.all(color:purple.withOpacity(.35))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(s.regCodeDevNote,style:TextStyle(color:context.cMut,fontSize:11,height:1.35)),
+          const SizedBox(height:6),
+          Text('Код: $devCode',style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900,letterSpacing:3,color:purple)),
+        ])),
+      ],
+      const SizedBox(height:14),
+      Row(children:[
+        Expanded(child:TextButton(onPressed:onBack,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(s.cancel))),
+        const SizedBox(width:10),
+        Expanded(flex:2,child:TextButton(onPressed:onResend,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(resendIn>0?'${s.regResendIn} $resendIn с':s.regCodeResend,textAlign:TextAlign.center,style:TextStyle(fontSize:12.5,color:resendIn>0?context.cMut:purple,fontWeight:FontWeight.w800)))),
+      ]),
+    ]));
+  }
+}
 class _AuthMode extends StatelessWidget{
   final String label;final bool active;final VoidCallback? onTap;
   const _AuthMode({required this.label,required this.active,required this.onTap});
@@ -740,6 +910,12 @@ String friendlyError(Object ex,AppStrings s){
   if(x.contains('username_taken'))return s.usernameTaken;
   if(x.contains('invalid_username'))return s.invalidUsername;
   if(x.contains('invalid_credentials'))return s.invalidCredentials;
+  if(x.contains('phone_taken'))return s.phoneTaken;
+  if(x.contains('invalid_phone'))return s.ru?'Проверь номер телефона':'Check the phone number';
+  if(x.contains('code_invalid'))return s.codeInvalid;
+  if(x.contains('code_expired'))return s.codeExpired;
+  if(x.contains('phone_not_verified'))return s.ru?'Сначала подтверди номер':'Verify your phone first';
+  if(x.contains('email_not_verified'))return s.ru?'Сначала подтверди почту':'Verify your email first';
   if(x.contains('http_429'))return ru429(s);
   if(x.contains('http_5'))return s.connectionError+' · сервер недоступен, попробуй через минуту';
   if(x.contains('TimeoutException')||x.contains('timeout'))return s.connectionError+' · сервер не отвечает';
@@ -756,7 +932,7 @@ class Msg{final String id,text,sender,type,mediaUrl;final bool mine;final DateTi
 class Shell extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
   final ValueChanged<bool> onTheme,onNotifications;final ValueChanged<String> onLanguage;
-  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;final VoidCallback onLogout;
+  final Future<Map<String,dynamic>> Function(String,String,String?,{String? bio}) onProfile;final VoidCallback onLogout;
   const Shell({super.key,required this.name,required this.username,required this.light,required this.language,required this.notifications,required this.onTheme,required this.onLanguage,required this.onNotifications,required this.onProfile,required this.onLogout});
   @override State<Shell> createState()=>_ShellState();
 }
@@ -810,12 +986,27 @@ class _ShellState extends State<Shell>{
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(msg)));
     }
   }
+  // Звонок прямо из профиля: находим/создаём личный чат и сразу набираем
+  Future<void> callUser(UserX u,bool video)async{
+    try{
+      final d=await Api.post('/chats/direct',{'userId':u.id});
+      final chatId=(d['id']??'').toString();
+      if(!mounted)return;
+      await Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(call:CallStart(chatId:chatId,name:u.name,peerId:u.id,video:video))));
+    }catch(e){
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).openChatError)));
+    }
+  }
+  Future<void> openProfile(UserX u)async{
+    await Navigator.push(context,MaterialPageRoute(builder:(_)=>UserProfilePage(userId:u.id,onMessage:openPerson,onCall:callUser)));
+  }
   @override Widget build(BuildContext context){
     final s=S(context);
     final current=tab==0
       ?Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))
       :tab==1
-        ?Contacts(onOpen:openPerson,onOpenGroup:openChat)
+        ?Contacts(onOpenProfile:openProfile,onOpenGroup:openChat)
         :tab==2
           ?Calls(onOpenChat:openChat)
           :Settings(
@@ -1139,8 +1330,9 @@ class _BareField extends StatefulWidget{
   final IconData? icon;
   final TextInputType? keyboardType;
   final int maxLines;
+  final int? maxLength;
   final ValueChanged<String>? onChanged;
-  const _BareField({this.controller,required this.hint,this.icon,this.keyboardType,this.maxLines=1,this.onChanged});
+  const _BareField({this.controller,required this.hint,this.icon,this.keyboardType,this.maxLines=1,this.maxLength,this.onChanged});
   @override State<_BareField> createState()=>_BareFieldState();
 }
 class _BareFieldState extends State<_BareField>{
@@ -1198,6 +1390,7 @@ class _BareFieldState extends State<_BareField>{
                   textInputAction:multi?TextInputAction.newline:TextInputAction.done,
                   maxLines:multi?widget.maxLines:1,
                   minLines:1,
+                  inputFormatters:widget.maxLength!=null?[LengthLimitingTextInputFormatter(widget.maxLength)]:null,
                   style:const TextStyle(fontWeight:FontWeight.w600,fontSize:15),
                   cursorColor:pink,
                   backgroundCursorColor:context.cMut,
@@ -1705,13 +1898,16 @@ class _ChatState extends State<ChatPage>{
   String _dayKey(DateTime d)=>d.year.toString().padLeft(4,'0')+d.month.toString().padLeft(2,'0')+d.day.toString().padLeft(2,'0');
   Future<void> showContact(BuildContext context)async{
     final s=S(context);
-    String username='';
-    if(!widget.chat.isGroup){
-      try{
-        final d=await Api.get('/chats/'+widget.chat.id+'/peer');
-        username=(d['username']??'').toString();
-      }catch(_){}
+    // Личный чат: открываем полноценный профиль человека (Telegram-стиль)
+    if(!widget.chat.isGroup&&peerId.isNotEmpty){
+      await Navigator.push(context,MaterialPageRoute(builder:(_)=>UserProfilePage(
+        userId:peerId,
+        onMessage:(u)async{if(context.mounted)Navigator.pop(context);},
+        onCall:(u,video)async{if(context.mounted){Navigator.pop(context);openCall(context,video);}},
+      )));
+      return;
     }
+    // Группа: лист с участниками и действиями
     if(!context.mounted)return;
     showModalBottomSheet(
       context:context,
@@ -1723,18 +1919,12 @@ class _ChatState extends State<ChatPage>{
           child:Column(
             mainAxisSize:MainAxisSize.min,
             children:[
-              Avatar(name:widget.chat.name,size:84,url:peerAvatar.isNotEmpty?peerAvatar:widget.chat.peerAvatar),
+              Avatar(name:widget.chat.name,size:84),
               const SizedBox(height:12),
               Text(widget.chat.name,style:const TextStyle(fontSize:23,fontWeight:FontWeight.w900)),
-              if(username.isNotEmpty) ...[
-                const SizedBox(height:4),
-                Text('@'+username,style:TextStyle(color:context.cMut,fontSize:14)),
-              ],
               const SizedBox(height:15),
-              if(widget.chat.isGroup)_GroupMembers(chatId:widget.chat.id),
+              _GroupMembers(chatId:widget.chat.id),
               ListTile(leading:Icon(Icons.auto_awesome_rounded),title:Text(s.effects),subtitle:Text(s.intensity,style:TextStyle(color:context.cMut)),onTap:(){Navigator.pop(context);showEffects(context);}),
-              ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
-              ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
               ListTile(leading:const Icon(Icons.refresh_rounded),title:Text(s.refresh),onTap:(){Navigator.pop(context);setState(()=>loading=true);load();}),
             ],
           ),
@@ -2010,7 +2200,11 @@ class _GroupMembersState extends State<_GroupMembers>{
     return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       Padding(padding:EdgeInsets.only(bottom:4),child:Text(s.members+' · ${members.length}',style:TextStyle(color:context.cMut,fontSize:12,fontWeight:FontWeight.w800))),
       if(loading)const Padding(padding:EdgeInsets.all(8),child:CircularProgressIndicator(strokeWidth:2)),
-      ...members.take(12).map((m)=>Padding(padding:const EdgeInsets.symmetric(vertical:1),child:Row(children:[Avatar(name:m.name,size:34),const SizedBox(width:10),Expanded(child:Text(m.name,style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,overflow:TextOverflow.ellipsis)))]))),
+      ...members.take(12).map((m)=>Padding(padding:const EdgeInsets.symmetric(vertical:1),child:InkWell(
+        borderRadius:BorderRadius.circular(12),
+        onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>UserProfilePage(userId:m.id))),
+        child:Row(children:[Avatar(name:m.name,size:34),const SizedBox(width:10),Expanded(child:Text(m.name,style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,overflow:TextOverflow.ellipsis)))]),
+      ))),
       ListTile(leading:const Icon(Icons.person_add_alt_rounded),title:Text(s.addMember),onTap:_add,contentPadding:EdgeInsets.zero),
     ]);
   }
@@ -2284,21 +2478,37 @@ class _EffectPainter extends CustomPainter{
   }
   @override bool shouldRepaint(covariant _EffectPainter oldDelegate)=>oldDelegate.effect!=effect||oldDelegate.intensity!=intensity||oldDelegate.dark!=dark;
 }
+// ===== Контакты: две вкладки — «Контакты» (сохранённые люди) и «Все люди» (поиск по приложению) =====
 class Contacts extends StatefulWidget{
-  final ValueChanged<UserX> onOpen;final ValueChanged<Chat>? onOpenGroup;
-  const Contacts({super.key,required this.onOpen,this.onOpenGroup});
+  final void Function(UserX u) onOpenProfile;
+  final void Function(Chat c)? onOpenGroup;
+  const Contacts({super.key,required this.onOpenProfile,this.onOpenGroup});
   @override State<Contacts> createState()=>_ContactsState();
 }
 class _ContactsState extends State<Contacts>{
+  int seg=0; // 0 = контакты, 1 = все люди
   String q='';bool loading=true;List<UserX> people=[];String? error;
-  @override void initState(){super.initState();search();}
-  Future<void> search()async{
+  @override void initState(){super.initState();load();}
+  Future<void> load()async{
     if(!mounted)return;setState(()=>loading=true);
     try{
-      final a=await Api.get('/users?q='+Uri.encodeQueryComponent(q));
-      people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString(),avatar:(x['avatar_url']??'').toString())).toList();
+      if(seg==0){
+        final a=await Api.get('/contacts');
+        people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString(),avatar:(x['avatar_url']??'').toString())).toList();
+      }else{
+        final a=await Api.get('/users?q='+Uri.encodeQueryComponent(q));
+        people=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString(),avatar:(x['avatar_url']??'').toString())).toList();
+      }
+      error=null;
     }catch(e){people=[];error=e.toString();}
     if(mounted)setState(()=>loading=false);
+  }
+  List<UserX> get filtered{
+    if(seg==0&&q.isNotEmpty){
+      final lq=q.toLowerCase();
+      return people.where((u)=>u.name.toLowerCase().contains(lq)||u.username.toLowerCase().contains(lq)).toList();
+    }
+    return people;
   }
   Future<void> _createGroup()async{
     final s=S(context);
@@ -2323,22 +2533,29 @@ class _ContactsState extends State<Contacts>{
   }
   @override Widget build(BuildContext context){
     final s=S(context);
+    final list=filtered;
     return Column(children:[
-      Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.createGroup,onPressed:()=>_createGroup(),icon:const Icon(Icons.group_add_rounded)),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
+      Padding(padding:const EdgeInsets.fromLTRB(20,18,20,10),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.createGroup,onPressed:()=>_createGroup(),icon:const Icon(Icons.group_add_rounded)),IconButton(tooltip:s.refresh,onPressed:load,icon:const Icon(Icons.refresh_rounded))])),
+      // --- Переключатель: Контакты | Все люди (как в Telegram) ---
+      Padding(padding:const EdgeInsets.fromLTRB(20,0,20,10),child:Row(children:[
+        Expanded(child:_Seg(label:s.tabContacts,active:seg==0,onTap:seg==0?null:(){q='';setState(()=>seg=0);load();})),
+        const SizedBox(width:8),
+        Expanded(child:_Seg(label:s.tabAllPeople,active:seg==1,onTap:seg==1?null:(){q='';setState(()=>seg=1);load();})),
+      ])),
       Padding(
         padding:const EdgeInsets.fromLTRB(20,0,20,2),
-        child:_GlassSearchField(hint:s.findPeopleHint,onChanged:(v){q=v.trim();search();}),
+        child:_GlassSearchField(hint:seg==0?s.findPeopleHint:s.findPeopleHint,onChanged:(v){q=v.trim();seg==0?setState(() {}):searchDebounced();}),
       ),
       const SizedBox(height:10),
-      Expanded(child:loading?const Center(child:CircularProgressIndicator()):error!=null?ListView(children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)]):people.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.person_search_outlined,title:s.noPeople,sub:s.noPeopleSub)]):ListView.separated(
-        padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:people.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
-        itemBuilder:(_,i){final u=people[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Material(
+      Expanded(child:loading?const Center(child:CircularProgressIndicator()):error!=null?ListView(children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)]):list.isEmpty?ListView(children:[const SizedBox(height:140),EmptyState(icon:seg==0?Icons.person_add_alt_1_outlined:Icons.person_search_outlined,title:seg==0?s.noContacts:s.noPeople,sub:seg==0?s.noContactsSub:s.noPeopleSub)]):ListView.separated(
+        padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:list.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
+        itemBuilder:(_,i){final u=list[i];return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Material(
           type:MaterialType.transparency,
           child:InkWell(
             borderRadius:BorderRadius.circular(22),
             splashColor:pink.withOpacity(.06),
             highlightColor:pink.withOpacity(.035),
-            onTap:()=>widget.onOpen(u),
+            onTap:()=>widget.onOpenProfile(u),
             child:Container(
               padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
               decoration:BoxDecoration(
@@ -2360,6 +2577,35 @@ class _ContactsState extends State<Contacts>{
       )),
     ]);
   }
+  Timer? _deb;
+  void searchDebounced(){
+    _deb?.cancel();
+    _deb=Timer(const Duration(milliseconds:350),(){if(mounted)load();});
+  }
+}
+
+// Переключатель вкладок внутри Контактов
+class _Seg extends StatelessWidget{
+  final String label;final bool active;final VoidCallback? onTap;
+  const _Seg({required this.label,required this.active,required this.onTap});
+  @override Widget build(BuildContext context)=>Material(
+    color:active?null:Colors.transparent,
+    child:InkWell(
+      onTap:onTap,
+      borderRadius:BorderRadius.circular(16),
+      child:AnimatedContainer(
+        duration:const Duration(milliseconds:180),
+        height:42,alignment:Alignment.center,
+        decoration:BoxDecoration(
+          gradient:active?const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad):null,
+          color:active?null:context.cSurf2.withOpacity(.5),
+          borderRadius:BorderRadius.circular(16),
+          border:Border.all(color:active?Colors.transparent:context.cLine),
+        ),
+        child:Text(label,style:TextStyle(fontSize:13,fontWeight:FontWeight.w800,color:active?Colors.white:context.cMut)),
+      ),
+    ),
+  );
 }
 
 class Calls extends StatefulWidget{
@@ -2453,12 +2699,12 @@ class _SettingsItem extends StatelessWidget{
 class Settings extends StatefulWidget{
   final String name,username,language;final bool light,notifications;
   final ValueChanged<bool> onTheme,onNotifications;final ValueChanged<String> onLanguage;
-  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;final VoidCallback onLogout;
+  final Future<Map<String,dynamic>> Function(String,String,String?,{String? bio}) onProfile;final VoidCallback onLogout;
   const Settings({super.key,required this.name,required this.username,required this.light,required this.language,required this.notifications,required this.onTheme,required this.onLanguage,required this.onNotifications,required this.onProfile,required this.onLogout});
   @override State<Settings> createState()=>_SettingsState();
 }
 class _SettingsState extends State<Settings>{
-  String avatar='',email='';
+  String avatar='',email='',phone='',bio='';bool emailVerified=false,phoneVerified=false;
   bool meOnline=true,meTyping=true,meReads=true,meShots=false,meCalls=true,secureMode=false;
   @override void initState(){super.initState();_loadMe();}
   Future<void> _loadMe()async{
@@ -2473,6 +2719,10 @@ class _SettingsState extends State<Settings>{
       setState((){
         avatar=(me['avatar_url']??'').toString();
         email=(me['email']??'').toString();
+        phone=(me['phone']??'').toString();
+        bio=(me['bio']??'').toString();
+        emailVerified=me['email_verified']==true;
+        phoneVerified=me['phone_verified']==true;
         meOnline=gShowOnline;meTyping=gShowTyping;meReads=gShowReads;
         meShots=me['block_screenshots']==true;
         meCalls=me['allow_calls']!=false;
@@ -2514,9 +2764,13 @@ class _SettingsState extends State<Settings>{
                 Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:17.5,fontWeight:FontWeight.w900)),
                   const SizedBox(height:3),
-                  Text('@'+widget.username,style:TextStyle(color:context.cMut,fontSize:13)),
+                  Row(children:[
+                    Flexible(child:Text('@'+widget.username,style:TextStyle(color:context.cMut,fontSize:13),overflow:TextOverflow.ellipsis)),
+                    if(emailVerified)...[const SizedBox(width:5),Icon(Icons.verified_rounded,size:14,color:green)],
+                    if(phoneVerified)...[const SizedBox(width:3),Icon(Icons.verified_user_rounded,size:13,color:green)],
+                  ]),
                   const SizedBox(height:3),
-                  Text(s.profileTagline,style:const TextStyle(color:purple,fontSize:12,fontWeight:FontWeight.w700)),
+                  Text(bio.isNotEmpty?bio:s.profileTagline,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:bio.isNotEmpty?context.cMut:purple,fontSize:12,fontWeight:bio.isNotEmpty?FontWeight.w600:FontWeight.w700)),
                 ])),
                 Icon(Icons.arrow_forward_ios_rounded,size:16,color:context.cMut),
               ]),
@@ -2616,14 +2870,141 @@ class _SettingsState extends State<Settings>{
 }
 
 // ===== Страница профиля (как в Telegram): шапка-градиент, большой аватар, инфо, действия =====
+// ===== Профиль другого человека (Telegram-стиль): шапка, статус, bio, действия =====
+class UserProfilePage extends StatefulWidget{
+  final String userId;
+  final Future<void> Function(UserX u)? onMessage;
+  final Future<void> Function(UserX u,bool video)? onCall;
+  const UserProfilePage({super.key,required this.userId,this.onMessage,this.onCall});
+  @override State<UserProfilePage> createState()=>_UserProfilePageState();
+}
+class _UserProfilePageState extends State<UserProfilePage>{
+  bool loading=true;String? error;
+  String name='',username='',avatar='',bio='',phone='';
+  bool isContact=false,online=false,onlineHidden=false;DateTime? lastSeen;
+  @override void initState(){super.initState();load();}
+  Future<void> load()async{
+    try{
+      final d=await Api.get('/users/'+widget.userId);
+      if(!mounted)return;
+      setState((){
+        name=(d['display_name']??'').toString();
+        username=(d['username']??'').toString();
+        avatar=(d['avatar_url']??'').toString();
+        bio=(d['bio']??'').toString();
+        phone=(d['phone']??'').toString();
+        isContact=d['isContact']==true;
+        online=d['online']==true;
+        onlineHidden=d['online']==null;
+        lastSeen=d['lastSeen']!=null?DateTime.tryParse(d['lastSeen'].toString()):null;
+        error=null;loading=false;
+      });
+    }catch(e){if(mounted)setState(() {error=e.toString();loading=false;});}
+  }
+  void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
+  Future<void> toggleContact()async{
+    final s=S(context);
+    try{
+      if(isContact){await Api.delete('/contacts/'+widget.userId);}
+      else{await Api.post('/contacts',{'userId':widget.userId});}
+      if(!mounted)return;
+      setState(()=>isContact=!isContact);
+      snack(isContact?s.contactAdded:s.contactRemoved);
+    }catch(e){snack(S(context).connectionError);}
+  }
+  void copy(String v,String label){
+    Clipboard.setData(ClipboardData(text:v));
+    snack(label+': '+S(context).copied);
+  }
+  String _status(AppStrings s){
+    if(onlineHidden)return s.active;
+    if(online)return s.online;
+    if(lastSeen!=null){
+      final diff=DateTime.now().difference(lastSeen!);
+      return diff.inHours<24?s.lastSeenRecent:s.lastSeenLong;
+    }
+    return s.active;
+  }
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+    if(error!=null)return Scaffold(body:ListView(children:[const SizedBox(height:160),EmptyState(icon:Icons.person_off_outlined,title:s.connectionError,sub:error!)]));
+    final statusColor=online&&!onlineHidden?green:(onlineHidden?context.cMut:purple);
+    return Scaffold(
+      body:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        // --- градиентная шапка ---
+        Stack(clipBehavior:Clip.none,children:[
+          Container(height:170,decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad))),
+          Positioned(top:-60,right:-50,child:_Glow(size:200,color:Colors.white.withOpacity(.16))),
+          SafeArea(child:SizedBox(height:56,child:Row(children:[
+            const SizedBox(width:6),
+            SizedBox(width:44,height:44,child:IconButton(tooltip:'Назад',onPressed:()=>Navigator.maybePop(context),icon:const Icon(Icons.arrow_back_rounded,color:Colors.white))),
+            const Spacer(),
+          ]))),
+          Positioned(left:0,right:0,bottom:-55,child:Center(child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:context.cBg,shape:BoxShape.circle),child:Avatar(name:name,size:110,url:avatar)))),
+        ]),
+        const SizedBox(height:66),
+        Text(name,textAlign:TextAlign.center,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,letterSpacing:-.5)),
+        const SizedBox(height:4),
+        Text('@'+username,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:14)),
+        const SizedBox(height:6),
+        Row(mainAxisAlignment:MainAxisAlignment.center,children:[
+          Container(width:7,height:7,decoration:BoxDecoration(color:statusColor,shape:BoxShape.circle)),
+          const SizedBox(width:6),
+          Text(_status(s),style:TextStyle(color:statusColor,fontSize:12.5,fontWeight:FontWeight.w800)),
+        ]),
+        const SizedBox(height:22),
+        Padding(padding:const EdgeInsets.symmetric(horizontal:18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          if(bio.isNotEmpty)Padding(padding:const EdgeInsets.only(bottom:6),child:Row(children:[
+            const SizedBox(width:2),
+            Expanded(child:Container(padding:const EdgeInsets.symmetric(horizontal:16,vertical:13),decoration:BoxDecoration(color:context.cSurf,borderRadius:BorderRadius.circular(20),border:Border.all(color:context.cLine)),child:Text(bio,style:const TextStyle(fontSize:14,height:1.4)))),
+          ])),
+          _VibeGroup(children:[
+            ListTile(
+              leading:_IconBadge(icon:Icons.alternate_email_rounded,color:purple),
+              title:Text('@'+username,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.usernameLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+              trailing:Icon(Icons.copy_rounded,size:18,color:context.cMut),
+              onTap:()=>copy('@'+username,s.usernameLabel),
+            ),
+            if(phone.isNotEmpty)ListTile(
+              leading:_IconBadge(icon:Icons.call_outlined,color:green),
+              title:Text(phone,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.phoneLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+              trailing:Icon(Icons.copy_rounded,size:18,color:context.cMut),
+              onTap:()=>copy(phone,s.phoneLabel),
+            ),
+          ]),
+          const SizedBox(height:16),
+          Row(children:[
+            Expanded(child:_GradientButton(height:52,radius:16,icon:Icons.chat_bubble_outline_rounded,label:s.writeMsg,busy:false,onTap:()=>widget.onMessage?.call(UserX(widget.userId,name,username,avatar:avatar)))),
+            const SizedBox(width:10),
+            SizedBox(width:52,height:52,child:OutlinedButton(onPressed:()=>widget.onCall?.call(UserX(widget.userId,name,username,avatar:avatar),false),style:OutlinedButton.styleFrom(padding:EdgeInsets.zero,side:const BorderSide(color:purple),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16))),child:const Icon(Icons.call_outlined,color:purple))),
+          ]),
+          const SizedBox(height:10),
+          OutlinedButton.icon(
+            onPressed:toggleContact,
+            style:OutlinedButton.styleFrom(foregroundColor:isContact?pink:green,side:BorderSide(color:isContact?pink:green),minimumSize:const Size.fromHeight(50),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16))),
+            icon:Icon(isContact?Icons.person_remove_outlined:Icons.person_add_alt_1_outlined,size:19),
+            label:Text(isContact?s.removeContact:s.addContact),
+          ),
+          const SizedBox(height:24),
+        ])),
+      ])),
+    );
+  }
+}
+
+// ===== Мой профиль: крупная шапка, био, бейджи подтверждения (Telegram-стиль, но круче) =====
 class ProfilePage extends StatefulWidget{
   final String name,username,avatar,email;
-  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;
+  final Future<Map<String,dynamic>> Function(String,String,String?,{String? bio}) onProfile;
   const ProfilePage({super.key,required this.name,required this.username,required this.avatar,required this.email,required this.onProfile});
   @override State<ProfilePage> createState()=>_ProfilePageState();
 }
 class _ProfilePageState extends State<ProfilePage>{
-  late String name,username,avatar;String email='';
+  late String name,username,avatar;String email='',phone='',bio='';
+  bool emailVerified=false,phoneVerified=false;
   @override void initState(){super.initState();name=widget.name;username=widget.username;avatar=widget.avatar;_load();}
   Future<void> _load()async{
     try{
@@ -2632,6 +3013,10 @@ class _ProfilePageState extends State<ProfilePage>{
       setState((){
         avatar=(me['avatar_url']??'').toString();
         email=(me['email']??'').toString();
+        phone=(me['phone']??'').toString();
+        bio=(me['bio']??'').toString();
+        emailVerified=me['email_verified']==true;
+        phoneVerified=me['phone_verified']==true;
       });
     }catch(_){}
   }
@@ -2665,23 +3050,86 @@ class _ProfilePageState extends State<ProfilePage>{
     }catch(_){if(mounted)snack(s.mediaFailed);}
   }
   Future<void> _openEditor()async{
-    final resp=await Navigator.push<Map>(context,MaterialPageRoute(builder:(_)=>EditProfilePage(name:name,username:username,avatar:avatar,onProfile:widget.onProfile)));
+    final resp=await Navigator.push<Map>(context,MaterialPageRoute(builder:(_)=>EditProfilePage(name:name,username:username,avatar:avatar,bio:bio,onProfile:widget.onProfile)));
     if(resp!=null){
       setState((){
         name=(resp['name']??name).toString();
         username=(resp['username']??username).toString();
         avatar=(resp['avatar_url']??avatar).toString();
+        bio=(resp['bio']??bio).toString();
       });
       _load();
     }
   }
+  // Подтверждение почты/телефона для существующего аккаунта: запрос кода → ввод → флаг на сервере
+  Future<void> _verify(String purpose)async{
+    final s=S(context);
+    final target=purpose=='phone'?phone:email;
+    if(target.isEmpty){snack(s.ru?'Сначала укажи цель подтверждения':'Nothing to verify');return;}
+    String? dev;final ctl=TextEditingController();bool busy=false;
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,setD)=>AlertDialog(
+      backgroundColor:context.cSurf,
+      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+      title:Row(children:[Icon(purpose=='phone'?Icons.call_outlined:Icons.mark_email_unread_outlined,size:20,color:purpose=='phone'?purple:pink),const SizedBox(width:8),Expanded(child:Text(purpose=='phone'?s.verifyPhoneTitle:s.verifyEmailTitle,style:const TextStyle(fontWeight:FontWeight.w900,fontSize:17)))]),
+      content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text((purpose=='phone'?s.regCodeSentPhone:s.regCodeSentEmail)+' '+target,style:TextStyle(color:context.cMut,fontSize:12.5)),
+        const SizedBox(height:14),
+        TextField(controller:ctl,enabled:!busy,autofocus:true,maxLength:6,keyboardType:TextInputType.number,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,letterSpacing:10),decoration:InputDecoration(hintText:'——',counterText:'',filled:true,fillColor:context.cBg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(14),borderSide:BorderSide(color:context.cLine)))),
+        if(dev!=null)...[
+          const SizedBox(height:10),
+          Container(width:double.infinity,padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:purple.withOpacity(.10),borderRadius:BorderRadius.circular(12),border:Border.all(color:purple.withOpacity(.35))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            Text(s.regCodeDevNote,style:TextStyle(color:context.cMut,fontSize:10.5,height:1.3)),
+            const SizedBox(height:5),
+            Text('Код: $dev',style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900,letterSpacing:2,color:purple)),
+          ])),
+        ],
+      ]),
+      actions:[
+        TextButton(onPressed:busy?null:()async{
+          setD(()=>busy=true);
+          try{final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':target});setD(()=>dev=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString());}
+          catch(e){if(ctx.mounted)Navigator.pop(ctx);snack(friendlyError(e,s));return;}
+          setD(()=>busy=false);
+        },child:Text(dev==null?s.regCodeTitle:s.regCodeResend)),
+        TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),
+        FilledButton(onPressed:busy?null:()async{
+          final c=ctl.text.trim();
+          if(c.length!=6){snack(s.codeInvalid);return;}
+          setD(()=>busy=true);
+          try{
+            await Api.post('/auth/verify-code',{'purpose':purpose,'target':target,'code':c});
+            if(ctx.mounted)Navigator.pop(ctx,true);
+          }catch(e){snack(friendlyError(e,s));setD(()=>busy=false);}
+        },child:Text(s.regVerify)),
+      ],
+    )));
+    if(ok==true&&mounted){
+      snack(purpose=='phone'?s.phoneVerifiedOk:s.emailVerifiedOk);
+      _load();
+    }
+  }
+  Widget _badge(AppStrings s,{required bool ok,required String label,required Color color,required IconData icon,VoidCallback? onTap})=>InkWell(
+    onTap:onTap,
+    borderRadius:BorderRadius.circular(999),
+    child:Container(
+      padding:const EdgeInsets.symmetric(horizontal:11,vertical:6),
+      decoration:BoxDecoration(color:color.withOpacity(ok?0.13:0.09),borderRadius:BorderRadius.circular(999),border:Border.all(color:color.withOpacity(ok?0.55:0.35))),
+      child:Row(mainAxisSize:MainAxisSize.min,children:[
+        Icon(ok?Icons.verified_rounded:Icons.error_outline_rounded,size:14,color:color),
+        const SizedBox(width:5),
+        Text(label,style:TextStyle(color:color,fontSize:11,fontWeight:FontWeight.w800)),
+      ]),
+    ),
+  );
   @override Widget build(BuildContext context){
     final s=S(context);
     return Scaffold(
       body:SingleChildScrollView(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         // --- градиентная шапка с аватаром ---
         Stack(clipBehavior:Clip.none,children:[
-          Container(height:168,decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad))),
+          Container(height:190,decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad))),
+          Positioned(top:-50,left:-60,child:_Glow(size:180,color:Colors.white.withOpacity(.15))),
+          Positioned(top:30,right:-70,child:_Glow(size:200,color:Colors.white.withOpacity(.10))),
           SafeArea(
             child:SizedBox(
               height:56,
@@ -2689,6 +3137,7 @@ class _ProfilePageState extends State<ProfilePage>{
                 const SizedBox(width:6),
                 SizedBox(width:44,height:44,child:IconButton(tooltip:'Назад',onPressed:()=>Navigator.maybePop(context),icon:const Icon(Icons.arrow_back_rounded,color:Colors.white))),
                 const Spacer(),
+                Padding(padding:const EdgeInsets.only(right:12),child:Text(s.profileTitle,style:TextStyle(color:Colors.white.withOpacity(.9),fontSize:15,fontWeight:FontWeight.w900))),
               ]),
             ),
           ),
@@ -2705,11 +3154,19 @@ class _ProfilePageState extends State<ProfilePage>{
           ))),
         ]),
         const SizedBox(height:68),
-        Text(name,textAlign:TextAlign.center,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,letterSpacing:-.5)),
+        Text(name,textAlign:TextAlign.center,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900,letterSpacing:-.5)),
         const SizedBox(height:4),
         Text('@'+username,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:14)),
-        const SizedBox(height:6),
-        Text(s.profileTagline,textAlign:TextAlign.center,style:const TextStyle(color:purple,fontSize:12.5,fontWeight:FontWeight.w700)),
+        if(bio.isNotEmpty)...[
+          const SizedBox(height:8),
+          Padding(padding:const EdgeInsets.symmetric(horizontal:34),child:Text(bio,textAlign:TextAlign.center,style:const TextStyle(fontSize:13.5,height:1.4))),
+        ],
+        const SizedBox(height:14),
+        // --- бейджи подтверждения почты и телефона ---
+        Padding(padding:const EdgeInsets.symmetric(horizontal:22),child:Wrap(alignment:WrapAlignment.center,spacing:8,runSpacing:8,children:[
+          _badge(s,ok:emailVerified,label:(emailVerified?s.verifiedBadge:s.unverifiedBadge)+' · '+s.emailLabel,color:emailVerified?green:pink,icon:Icons.mail_outline_rounded,onTap:emailVerified?null:()=>_verify('email')),
+          if(phone.isNotEmpty)_badge(s,ok:phoneVerified,label:(phoneVerified?s.verifiedBadge:s.unverifiedBadge)+' · '+s.phoneLabel,color:phoneVerified?green:pink,icon:Icons.call_outlined,onTap:phoneVerified?null:()=>_verify('phone')),
+        ])),
         const SizedBox(height:22),
         Padding(padding:const EdgeInsets.symmetric(horizontal:18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
           _VibeGroup(children:[
@@ -2720,8 +3177,15 @@ class _ProfilePageState extends State<ProfilePage>{
             ),
             ListTile(
               leading:_IconBadge(icon:Icons.mail_outline_rounded,color:blue),
-              title:Text(email.isEmpty?'—':email,style:const TextStyle(fontWeight:FontWeight.w700)),
-              subtitle:Text(s.emailLabel,style:TextStyle(color:context.cMut,fontSize:12)),
+              title:Text(email.isEmpty?'—':email,style:const TextStyle(fontWeight:FontWeight.w700),maxLines:1,overflow:TextOverflow.ellipsis),
+              subtitle:Text(s.emailLabel+(emailVerified?' · '+s.verifiedBadge:''),style:TextStyle(color:context.cMut,fontSize:12)),
+              trailing:emailVerified?Icon(Icons.verified_rounded,size:19,color:green):(TextButton(onPressed:()=>_verify('email'),child:Text(s.verifyEmailTitle,style:const TextStyle(fontSize:11)))),
+            ),
+            if(phone.isNotEmpty)ListTile(
+              leading:_IconBadge(icon:Icons.call_outlined,color:green),
+              title:Text(phone,style:const TextStyle(fontWeight:FontWeight.w700)),
+              subtitle:Text(s.phoneLabel+(phoneVerified?' · '+s.verifiedBadge:''),style:TextStyle(color:context.cMut,fontSize:12)),
+              trailing:phoneVerified?Icon(Icons.verified_rounded,size:19,color:green):(TextButton(onPressed:()=>_verify('phone'),child:Text(s.verifyPhoneTitle,style:const TextStyle(fontSize:11)))),
             ),
           ]),
           const SizedBox(height:6),
@@ -2735,17 +3199,18 @@ class _ProfilePageState extends State<ProfilePage>{
 
 // ===== Редактор профиля (полноэкранный, как в Telegram) =====
 class EditProfilePage extends StatefulWidget{
-  final String name,username,avatar;
-  final Future<Map<String,dynamic>> Function(String,String,String?) onProfile;
-  const EditProfilePage({super.key,required this.name,required this.username,required this.avatar,required this.onProfile});
+  final String name,username,avatar,bio;
+  final Future<Map<String,dynamic>> Function(String,String,String?,{String? bio}) onProfile;
+  const EditProfilePage({super.key,required this.name,required this.username,required this.avatar,required this.bio,required this.onProfile});
   @override State<EditProfilePage> createState()=>_EditProfilePageState();
 }
 class _EditProfilePageState extends State<EditProfilePage>{
   late final TextEditingController n=TextEditingController(text:widget.name);
   late final TextEditingController u=TextEditingController(text:widget.username);
+  late final TextEditingController b=TextEditingController(text:widget.bio);
   String? pending; // null = не менял, '' = удалить фото, dataURL = новое фото
   bool busy=false;
-  @override void dispose(){n.dispose();u.dispose();super.dispose();}
+  @override void dispose(){n.dispose();u.dispose();b.dispose();super.dispose();}
   void snack(String x)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(x)));
   String get curAvatar=>pending==null?widget.avatar:pending!;
   bool get hasPendingRemove=>pending!=null&&pending!.isEmpty;
@@ -2771,13 +3236,13 @@ class _EditProfilePageState extends State<EditProfilePage>{
   Future<void> _save()async{
     final s=S(context);
     FocusManager.instance.primaryFocus?.unfocus();
-    final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');
+    final nn=n.text.trim();final uu=u.text.trim().toLowerCase().replaceFirst('@','');final bb=b.text.trim();
     if(nn.length<2||!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(uu)){snack(s.profileCheck);return;}
     setState(()=>busy=true);
     try{
-      final resp=await widget.onProfile(nn,uu,pending);
+      final resp=await widget.onProfile(nn,uu,pending,bio:bb);
       final out=Map<String,dynamic>.from(resp);
-      out['name']=nn;out['username']=uu;
+      out['name']=nn;out['username']=uu;out['bio']=bb;
       if(mounted)Navigator.pop(context,out);
     }catch(e){
       setState(()=>busy=false);
@@ -2808,7 +3273,11 @@ class _EditProfilePageState extends State<EditProfilePage>{
           Row(children:[Text('@',style:TextStyle(color:context.cMut,fontSize:16,fontWeight:FontWeight.w700)),const SizedBox(width:2),Expanded(child:_BareField(controller:u,hint:s.usernameHint))]),
           const SizedBox(height:7),
           Align(alignment:Alignment.centerLeft,child:Text(s.usernameRules,style:TextStyle(color:context.cMut,fontSize:11))),
-          const SizedBox(height:26),
+          const SizedBox(height:20),
+          Text(s.aboutBio.toUpperCase(),style:TextStyle(color:context.cMut,fontSize:10.5,fontWeight:FontWeight.w900,letterSpacing:1.2)),
+          const SizedBox(height:6),
+          _BareField(controller:b,hint:s.bioEditHint,maxLines:2,maxLength:160),
+          const SizedBox(height:10),
           _GradientButton(height:54,radius:16,busy:busy,icon:Icons.check_rounded,label:s.saveChanges,onTap:_save),
           const SizedBox(height:4),
           TextButton(onPressed:busy?null:()=>Navigator.pop(context),child:Text(s.cancel)),

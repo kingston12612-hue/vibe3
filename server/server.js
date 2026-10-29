@@ -19,6 +19,35 @@ console.log(`[db] DATABASE_URL: ${_dbUrl?'задан, host='+_dbHost:'НЕ ЗА�
 const pool=new Pool(_dbUrl&&!_dbLocal?{connectionString:_dbUrl,ssl:{rejectUnauthorized:false}}:{});
 const SECRET=process.env.JWT_SECRET||'change-me';
 
+// --- Контакты/верификация: утилиты ---
+function normPhone(p){let s=String(p||'').replace(/[^\d+]/g,'');if(s.length===11&&s[0]==='8')s='+7'+s.slice(1);if(s&&!s.startsWith('+'))s='+'+s;return s;}
+function validEmail(e){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e||''));}
+function validPhone(p){return /^\+\d{7,15}$/.test(String(p||''));}
+// кто сейчас подключён по сокету (для «в сети» в профилях)
+const __online=new Set();
+// Отправка кода: email через SMTP (если задан), SMS через произвольный шлюз (SMS_API_URL/SMS_API_KEY).
+// Если ничего не задано — код вернётся в ответе (devCode): флоу работает сразу, доставка подключается ключами.
+async function sendCode(purpose,target,code){
+ try{
+  if(purpose==='email'&&process.env.SMTP_HOST&&process.env.SMTP_USER&&process.env.SMTP_PASS){
+    const nm=require('nodemailer');
+    const tr=nm.createTransport({host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),secure:String(process.env.SMTP_PORT||'')==='465',auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}});
+    await tr.sendMail({from:process.env.SMTP_FROM||process.env.SMTP_USER,to:target.slice(6),subject:'vibe<3 — код подтверждения',text:'Код: '+code+' (действует 15 минут)'});
+    return 'smtp';
+  }
+  if(purpose==='phone'&&process.env.SMS_API_URL&&process.env.SMS_API_KEY){
+    const r=await fetch(process.env.SMS_API_URL,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+process.env.SMS_API_KEY},body:JSON.stringify({to:target.slice(6),text:'vibe<3: код '+code})});
+    if(r.ok)return 'sms';
+  }
+ }catch(e){console.error('sendCode failed',e);}
+ return 'none';
+}
+function normTarget(purpose,raw){
+ if(purpose==='email'){const e=String(raw||'').trim().toLowerCase();return validEmail(e)?('email:'+e):null;}
+ if(purpose==='phone'){const p=normPhone(raw);return validPhone(p)?('phone:'+p):null;}
+ return null;
+}
+
 app.use(cors());
 app.use(express.json({limit:'10mb'}));
 app.get('/health',async(_,res)=>{try{await pool.query('SELECT 1');res.json({ok:true,service:'vibe<3',database:true});}catch(e){console.error('health',e);res.status(503).json({ok:false,database:false});}});
@@ -36,31 +65,78 @@ app.get('/debug/log',(_,res)=>res.json({count:debugLogs.length,logs:debugLogs.sl
 function token(user){return jwt.sign({id:user.id,email:user.email,name:user.display_name},SECRET,{expiresIn:'30d'});}
 function auth(req,res,next){try{req.user=jwt.verify((req.headers.authorization||'').replace(/^Bearer /,''),SECRET);next();}catch{res.status(401).json({error:'unauthorized'});}}
 
+app.post('/auth/request-code',async(req,res)=>{try{
+ const purpose=String(req.body?.purpose||'');
+ const target=normTarget(purpose,req.body?.target);
+ if(!target)return res.status(400).json({error:purpose==='phone'?'invalid_phone':'invalid_email'});
+ const code=String(Math.floor(100000+Math.random()*900000));
+ await pool.query(`INSERT INTO verify_codes(target,code,purpose,verified,created_at) VALUES($1,$2,$3,FALSE,now())
+   ON CONFLICT(target) DO UPDATE SET code=$2,purpose=$3,verified=FALSE,created_at=now()`,[target,code,purpose]);
+ const delivery=await sendCode(purpose,target,code);
+ const out={ok:true,delivery};
+ if(delivery==='none'){out.devCode=code;console.log('[verify-code]',target,code);}
+ res.json(out);
+}catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
+
+app.post('/auth/verify-code',async(req,res)=>{try{
+ const purpose=String(req.body?.purpose||'');
+ const target=normTarget(purpose,req.body?.target);
+ if(!target)return res.status(400).json({error:purpose==='phone'?'invalid_phone':'invalid_email'});
+ const code=String(req.body?.code||'').trim();
+ const r=await pool.query('SELECT code,verified,created_at FROM verify_codes WHERE target=$1',[target]);
+ if(!r.rowCount)return res.status(400).json({error:'code_invalid'});
+ const row=r.rows[0];
+ if(row.verified)return res.json({ok:true,already:true});
+ if(new Date(row.created_at).getTime()<Date.now()-15*60*1000)return res.status(400).json({error:'code_expired'});
+ if(row.code!==code)return res.status(400).json({error:'code_invalid'});
+ await pool.query('UPDATE verify_codes SET verified=TRUE WHERE target=$1',[target]);
+ // если код подтверждает цель уже вошедшего юзера — сразу ставим флаг в профиле
+ try{
+  const me=jwt.verify((req.headers.authorization||'').replace(/^Bearer /,''),SECRET);
+  const u=await pool.query('SELECT email,phone FROM users WHERE id=$1',[me.id]);
+  if(u.rowCount){
+   if(purpose==='email'&&('email:'+String(u.rows[0].email||'').toLowerCase())===target)await pool.query('UPDATE users SET email_verified=TRUE WHERE id=$1',[me.id]);
+   if(purpose==='phone'&&u.rows[0].phone&&('phone:'+String(u.rows[0].phone))===target)await pool.query('UPDATE users SET phone_verified=TRUE WHERE id=$1',[me.id]);
+  }
+ }catch(_){}
+ res.json({ok:true});
+}catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
+
 app.post('/auth/register',async(req,res)=>{try{
  const email=String(req.body?.email||'').trim().toLowerCase(),name=String(req.body?.name||'').trim(),password=String(req.body?.password||''),rawUsername=String(req.body?.username||'').trim().toLowerCase();
  const username=rawUsername.replace(/^@/,'');
- if(!email.includes('@')||!name||name.length<2||password.length<6||!username||!/^[a-z0-9_]{3,30}$/.test(username))return res.status(400).json({error:'invalid_username'});
+ const phone=normPhone(req.body?.phone||'');
+ if(!validPhone(phone))return res.status(400).json({error:'invalid_phone'});
+ if(!validEmail(email)||!name||name.length<2||password.length<6||!username||!/^[a-z0-9_]{3,30}$/.test(username))return res.status(400).json({error:'invalid_username'});
+ // подтверждения обязательны: телефон и почта должны быть проверены кодом за последние 30 минут
+ const pc=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['phone:'+phone]);
+ if(!pc.rowCount)return res.status(403).json({error:'phone_not_verified'});
+ const ec=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['email:'+email]);
+ if(!ec.rowCount)return res.status(403).json({error:'email_not_verified'});
  const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);if(exists.rowCount)return res.status(409).json({error:'email_exists'});
  const hash=await bcrypt.hash(password,12);
  try{
-   const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash) VALUES($1,$2,$3,$4) RETURNING id,email,username,display_name',[email,username,name,hash]);
+   const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash,phone,email_verified,phone_verified) VALUES($1,$2,$3,$4,$5,TRUE,TRUE) RETURNING id,email,username,display_name',[email,username,name,hash,phone]);
    var u=r.rows[0];
  }catch(e){
-   if(e.code==='23505' && String(e.constraint||'').includes('email')) return res.status(409).json({error:'email_exists'});
-   if(e.code==='23505' && String(e.constraint||'').includes('username')) return res.status(409).json({error:'username_taken'});
+   if(e.code==='23505'&&String(e.constraint||e.detail||'').toLowerCase().includes('email')) return res.status(409).json({error:'email_exists'});
+   if(e.code==='23505'&&String(e.constraint||e.detail||'').toLowerCase().includes('username')) return res.status(409).json({error:'username_taken'});
+   if(e.code==='23505') return res.status(409).json({error:'phone_taken'});
    throw e;
  }
  res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
 app.post('/auth/login',async(req,res)=>{try{
- const login=String(req.body?.email||'').trim().toLowerCase(),password=String(req.body?.password||'');
- const r=await pool.query('SELECT id,email,username,display_name,password_hash FROM users WHERE email=$1 OR username=$1',[login]);
+ let login=String(req.body?.email||'').trim(),password=String(req.body?.password||'');
+ const asPhone=normPhone(login);
+ login=login.toLowerCase();
+ const r=await pool.query('SELECT id,email,username,display_name,password_hash FROM users WHERE email=$1 OR username=$1 OR phone=$2',[login,asPhone]);
  if(!r.rowCount||!(await bcrypt.compare(password,r.rows[0].password_hash)))return res.status(401).json({error:'invalid_credentials'});
  const u=r.rows[0];res.json({token:token(u),user:{id:u.id,email:u.email,username:u.username,name:u.display_name}});
 }catch(e){console.error(e);res.status(500).json({error:'server_error'});}});
 
-const _ME_COLS='id,email,username,display_name,avatar_url,COALESCE(show_online,true) AS show_online,COALESCE(show_typing,true) AS show_typing,COALESCE(show_reads,true) AS show_reads,COALESCE(block_screenshots,false) AS block_screenshots,COALESCE(allow_calls,true) AS allow_calls';
+const _ME_COLS='id,email,username,display_name,avatar_url,phone,COALESCE(bio,\'\') AS bio,COALESCE(email_verified,FALSE) AS email_verified,COALESCE(phone_verified,FALSE) AS phone_verified,COALESCE(show_online,true) AS show_online,COALESCE(show_typing,true) AS show_typing,COALESCE(show_reads,true) AS show_reads,COALESCE(block_screenshots,false) AS block_screenshots,COALESCE(allow_calls,true) AS allow_calls';
 app.get('/me',auth,async(req,res)=>{const r=await pool.query(`SELECT ${_ME_COLS} FROM users WHERE id=$1`,[req.user.id]);if(!r.rowCount)return res.status(404).json({error:'user_not_found'});res.json(r.rows[0]);});
 // Приватность: флаги хранятся на сервере, чтобы собеседник не видел твой статус даже через прямой запрос
 function _privacy(body){
@@ -88,6 +164,7 @@ app.put('/me',auth,async(req,res)=>{try{
  const pr=_privacy(req.body);
  const sets=['display_name=$1','username=$2'];const vals=[name,rawUsername];let i=3;
  if(avatar!=null){sets.push(`avatar_url=$${i++}`);vals.push(avatar===''?null:avatar);}
+ if(req.body?.bio!=null){sets.push(`bio=$${i++}`);vals.push(String(req.body.bio).trim().slice(0,160));}
  for(const [col,v] of Object.entries(pr)){sets.push(`${col}=$${i++}`);vals.push(v);}
  vals.push(req.user.id);
  const r=await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${i} RETURNING ${_ME_COLS}`,vals);
@@ -101,6 +178,37 @@ app.put('/me',auth,async(req,res)=>{try{
 }});
 
 app.get('/users',auth,async(req,res)=>{const q=String(req.query.q||'').trim();const like='%'+q+'%';const r=await pool.query('SELECT id,username,display_name,avatar_url FROM users WHERE id<>$1 AND (username ILIKE $2 OR display_name ILIKE $2) ORDER BY display_name LIMIT 30',[req.user.id,like]);res.json(r.rows);});
+
+// Профиль другого человека: bio, статус в сети/был(а), телефон видят только мои контакты, email не выдаётся никогда
+app.get('/users/:id',auth,async(req,res)=>{try{
+ const r=await pool.query('SELECT id,username,display_name,avatar_url,COALESCE(bio,\'\') AS bio,phone,COALESCE(show_online,true) AS show_online,last_seen_at FROM users WHERE id=$1',[req.params.id]);
+ if(!r.rowCount)return res.status(404).json({error:'user_not_found'});
+ const u=r.rows[0];
+ const c=await pool.query('SELECT 1 FROM contacts WHERE owner_id=$1 AND contact_id=$2',[req.user.id,u.id]);
+ const out={id:u.id,username:u.username,display_name:u.display_name,avatar_url:u.avatar_url,bio:u.bio,isContact:c.rowCount>0};
+ if(u.show_online){out.online=__online.has(u.id);out.lastSeen=u.last_seen_at;}
+ if(c.rowCount&&u.phone)out.phone=u.phone;
+ res.json(out);
+}catch(e){console.error('user_lookup_failed',e);res.status(500).json({error:'server_error'});}});
+
+// --- Контакты: сохранённые люди (отдельно от поиска по всем юзерам) ---
+app.get('/contacts',auth,async(req,res)=>{try{
+ const r=await pool.query(`SELECT u.id,u.username,u.display_name,u.avatar_url,COALESCE(u.bio,'') AS bio,COALESCE(u.show_online,true) AS show_online,u.phone,u.last_seen_at
+ FROM contacts c JOIN users u ON u.id=c.contact_id WHERE c.owner_id=$1 ORDER BY u.display_name LIMIT 300`,[req.user.id]);
+ res.json(r.rows.map(x=>({id:x.id,username:x.username,display_name:x.display_name,avatar_url:x.avatar_url,bio:x.bio,online:__online.has(x.id)&&x.show_online,lastSeen:x.show_online?x.last_seen_at:null,phone:x.phone})));
+}catch(e){console.error('contacts_failed',e);res.status(500).json({error:'server_error'});}});
+app.post('/contacts',auth,async(req,res)=>{try{
+ const uid=String(req.body?.userId||'');
+ if(!uid)return res.status(400).json({error:'user_required'});
+ if(uid===req.user.id)return res.status(400).json({error:'cannot_add_self'});
+ const ex=await pool.query('SELECT 1 FROM users WHERE id=$1',[uid]);if(!ex.rowCount)return res.status(404).json({error:'user_not_found'});
+ await pool.query('INSERT INTO contacts(owner_id,contact_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.user.id,uid]);
+ res.json({ok:true});
+}catch(e){console.error('contact_add_failed',e);res.status(500).json({error:'server_error'});}});
+app.delete('/contacts/:userId',auth,async(req,res)=>{try{
+ await pool.query('DELETE FROM contacts WHERE owner_id=$1 AND contact_id=$2',[req.user.id,req.params.userId]);
+ res.json({ok:true});
+}catch(e){console.error('contact_del_failed',e);res.status(500).json({error:'server_error'});}});
 
 app.post('/chats',auth,async(req,res)=>{const title=String(req.body?.title||'Chat').trim();const group=!!req.body?.isGroup;const r=await pool.query('INSERT INTO chats(title,is_group,created_by) VALUES($1,$2,$3) RETURNING *',[title,group,req.user.id]);await pool.query('INSERT INTO chat_members(chat_id,user_id) VALUES($1,$2)',[r.rows[0].id,req.user.id]);res.json(r.rows[0]);});
 
@@ -221,7 +329,7 @@ app.post('/chats/:id/messages',auth,async(req,res)=>{try{
  res.json(r.rows[0]);
 }catch(e){console.error(e);res.status(500).json({error:'message_failed'});}});
 
-io.use((s,next)=>{try{s.user=jwt.verify(s.handshake.auth?.token||'',SECRET);next();}catch{next(new Error('unauthorized'));}});
+io.use((s,next)=>{try{s.user=jwt.verify(s.handshake.auth?.token||'',SECRET);__online.add(s.user.id);next();}catch{next(new Error('unauthorized'));}});
 // Уведомления всем, кроме отправителя: личная комната каждого участника
 async function notifyMembers(chatId,senderId,senderName,body){
  try{
@@ -260,7 +368,7 @@ io.on('connection',s=>{
  s.on('call:answer',m=>{if(m&&m.to&&m.answer)io.to('user:'+m.to).emit('call:answer',{chatId:String(m.chatId||''),from:s.user.id,answer:m.answer});});
  s.on('call:ice',m=>{if(m&&m.to&&m.candidate)io.to('user:'+m.to).emit('call:ice',{chatId:String(m.chatId||''),from:s.user.id,candidate:m.candidate});});
  s.on('call:end',m=>{if(m&&m.to)io.to('user:'+m.to).emit('call:end',{chatId:String(m.chatId||''),from:s.user.id,reason:String(m.reason||'ended')});});
- s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));
+ s.on('disconnect',()=>{__online.delete(s.user.id);try{pool.query('UPDATE users SET last_seen_at=now() WHERE id=$1',[s.user.id]).catch(()=>{});}catch(_){} s.broadcast.emit('presence',{userId:s.user.id,online:false});});
 });
 
 async function migrate(){
@@ -322,7 +430,27 @@ async function migrate(){
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_typing BOOLEAN NOT NULL DEFAULT TRUE',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS show_reads BOOLEAN NOT NULL DEFAULT TRUE',
     'ALTER TABLE users ADD COLUMN IF NOT EXISTS block_screenshots BOOLEAN NOT NULL DEFAULT FALSE',
-    'ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_calls BOOLEAN NOT NULL DEFAULT TRUE'
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_calls BOOLEAN NOT NULL DEFAULT TRUE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE',
+    'ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ',
+    'CREATE UNIQUE INDEX IF NOT EXISTS users_phone_key ON users(phone) WHERE phone IS NOT NULL',
+    `CREATE TABLE IF NOT EXISTS contacts(
+      owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      contact_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY(owner_id,contact_id)
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(owner_id)',
+    `CREATE TABLE IF NOT EXISTS verify_codes(
+      target TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      verified BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`
   ];
   for(const sql of statements){
     try{await pool.query(sql);}
