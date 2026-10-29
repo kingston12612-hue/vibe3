@@ -85,11 +85,11 @@ async function sendCode(purpose,target,code){
  if(purpose==='phone')return sendSmsCode(target.slice(6),'vibe<3: код подтверждения '+code+' (действует 15 минут)');
  return 'none';
 }
-// Ограничение частоты: не чаще 1 раза в 30 секунд, максимум 5 кодов в час на один адрес/номер
+// Ограничение частоты: не чаще 1 раза в 20 секунд, максимум 10 кодов в час на один адрес/номер
 const _rlMap=new Map();
 function rateOk(k){
  const now=Date.now();const a=(_rlMap.get(k)||[]).filter(t=>now-t<3600000);
- if(a.length>=5||(a.length&&now-a[a.length-1]<30000)){_rlMap.set(k,a);return false;}
+ if(a.length>=10||(a.length&&now-a[a.length-1]<20000)){_rlMap.set(k,a);return false;}
  a.push(now);_rlMap.set(k,a);return true;
 }
 function normTarget(purpose,raw){
@@ -164,17 +164,20 @@ app.post('/auth/register',async(req,res)=>{try{
  const email=String(req.body?.email||'').trim().toLowerCase(),name=String(req.body?.name||'').trim(),password=String(req.body?.password||''),rawUsername=String(req.body?.username||'').trim().toLowerCase();
  const username=rawUsername.replace(/^@/,'');
  const phone=normPhone(req.body?.phone||'');
- if(!validPhone(phone))return res.status(400).json({error:'invalid_phone'});
+ // v1.3.2: телефон НЕобязателен — если указан, должен быть подтверждён; пустой сохраняется как NULL
+ if(phone&&!validPhone(phone))return res.status(400).json({error:'invalid_phone'});
  if(!validEmail(email)||!name||name.length<2||password.length<6||!username||!/^[a-z0-9_]{3,30}$/.test(username))return res.status(400).json({error:'invalid_username'});
- // подтверждения обязательны: телефон и почта должны быть проверены кодом за последние 30 минут
- const pc=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['phone:'+phone]);
- if(!pc.rowCount)return res.status(403).json({error:'phone_not_verified'});
+ // подтверждения: почта обязательна, телефон — только если указан
+ if(phone){
+   const pc=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['phone:'+phone]);
+   if(!pc.rowCount)return res.status(403).json({error:'phone_not_verified'});
+ }
  const ec=await pool.query("SELECT 1 FROM verify_codes WHERE target=$1 AND verified=TRUE AND created_at>now()-interval '30 minutes'",['email:'+email]);
  if(!ec.rowCount)return res.status(403).json({error:'email_not_verified'});
  const exists=await pool.query('SELECT id FROM users WHERE email=$1',[email]);if(exists.rowCount)return res.status(409).json({error:'email_exists'});
  const hash=await bcrypt.hash(password,12);
  try{
-   const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash,phone,email_verified,phone_verified) VALUES($1,$2,$3,$4,$5,TRUE,TRUE) RETURNING id,email,username,display_name',[email,username,name,hash,phone]);
+   const r=await pool.query('INSERT INTO users(email,username,display_name,password_hash,phone,email_verified,phone_verified) VALUES($1,$2,$3,$4,$5,TRUE,TRUE) RETURNING id,email,username,display_name',[email,username,name,hash,phone||null]);
    var u=r.rows[0];
  }catch(e){
    if(e.code==='23505'&&String(e.constraint||e.detail||'').toLowerCase().includes('email')) return res.status(409).json({error:'email_exists'});

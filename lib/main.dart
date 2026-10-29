@@ -57,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.3.1 api=$apiBase');
+  Api.debugLog('app start v1.3.2 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -138,7 +138,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.3.1';
+  String get version=>'v1.3.2';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -319,6 +319,9 @@ class AppStrings {
   String get addPhone=>ru?'Добавить номер телефона':'Add phone number';
   String get phoneAdded=>ru?'Телефон добавлен ✓':'Phone added ✓';
   String get getCode=>ru?'Получить код':'Get code';
+  String get regSkip=>ru?'Пропустить':'Skip';
+  String get regCodeInserted=>ru?'Код уже вставлен в поле — просто нажми «Подтвердить»':'Code is pre-filled — just tap Verify';
+  String get regPhoneHintOpt=>ru?'+7 900 000-00-00 (необязательно)':'+7 900 000-00-00 (optional)';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -512,12 +515,13 @@ class _AuthState extends State<AuthScreen>{
     if(regStage=='form'){
       if(n.length<2){snack(s.nameRequired);return;}
       if(!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(u)){snack(s.usernameRules);return;}
+      // v1.3.2: телефон НЕобязателен — можно оставить пустым и добавить потом в профиле
       final ph=normPhoneLocal(phone.text.trim());
-      if(!phoneValid(ph)){snack(s.ru?'Введи номер в формате +7 900 000-00-00':'Enter phone like +7 900 000-00-00');return;}
+      if(phone.text.trim().isNotEmpty&&!phoneValid(ph)){snack(s.ru?'Введи номер в формате +7 900 000-00-00 — или оставь поле пустым':'Enter phone like +7 900 000-00-00 — or leave it empty');return;}
       if(!e.contains('@')||!e.contains('.')){snack(s.emailInvalid);return;}
       if(pw.length<6){snack(s.passwordShort);return;}
       if(pass2.text!=pw){snack(s.passwordsMismatch);return;}
-      await requestCode('phone');
+      await requestCode(phone.text.trim().isNotEmpty?'phone':'email');
       return;
     }
     await verifyCode();
@@ -527,10 +531,13 @@ class _AuthState extends State<AuthScreen>{
     setState(()=>busy=true);
     try{
       final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':purpose=='phone'?ph:e});
+      final dev=(d['devCode']??'').toString();
       if(mounted)setState((){
         regStage='code';codePurpose=purpose;
-        devCode=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString();
+        devCode=dev.isEmpty?null:dev;
         codeTarget=purpose=='phone'?ph:e;code.text='';
+        // v1.3.2: пока шлюз не подключён — код показан на экране и сразу вставлен в поле
+        if(dev.isNotEmpty)code.text=dev;
         resendIn=30;
       });
       resendTimer?.cancel();
@@ -558,8 +565,14 @@ class _AuthState extends State<AuthScreen>{
     }
     finally{if(mounted)setState(()=>busy=false);}
   }
+  // v1.3.2: пропустить шаг телефона — номер можно добавить потом в профиле
+  Future<void> skipPhone()async{
+    if(!mounted)return;
+    setState(()=>phoneOk=false);
+    await requestCode('email');
+  }
   Future<void> createAccount()async{
-    final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');final ph=normPhoneLocal(phone.text.trim());
+    final s=S(context);final e=email.text.trim().toLowerCase();final pw=pass.text;final n=name.text.trim();final u=username.text.trim().toLowerCase().replaceFirst('@','');final ph=phoneOk?normPhoneLocal(phone.text.trim()):'';
     setState(()=>busy=true);
     try{
       final d=await Api.post('/auth/register',{'email':e,'name':n,'username':u,'password':pw,'phone':ph});
@@ -637,6 +650,7 @@ class _AuthState extends State<AuthScreen>{
                             phoneDone:phoneOk,
                             onResend:resendIn>0||busy?null:()=>requestCode(codePurpose),
                             onBack:busy?null:(){resendTimer?.cancel();setState(() {regStage='form';devCode=null;code.text='';});},
+                            onSkip:codePurpose=='phone'&&!busy?skipPhone:null,
                           )
                         else ...[
                         AnimatedSwitcher(
@@ -650,7 +664,7 @@ class _AuthState extends State<AuthScreen>{
                                 const SizedBox(height:11),
                                 _AuthField(controller:username,icon:Icons.alternate_email_rounded,hint:s.usernameHint),
                                 const SizedBox(height:11),
-                                _AuthField(controller:phone,icon:Icons.call_outlined,hint:s.regPhoneHint,keyboardType:TextInputType.phone),
+                                _AuthField(controller:phone,icon:Icons.call_outlined,hint:s.regPhoneHintOpt,keyboardType:TextInputType.phone),
                                 const SizedBox(height:11),
                               ])
                             :const SizedBox.shrink(key:ValueKey('login-fields')),
@@ -731,8 +745,8 @@ class _AuthState extends State<AuthScreen>{
 // ===== Экран ввода кода подтверждения (SMS / почта) в мастере регистрации =====
 class _RegCodeStep extends StatelessWidget{
   final String purpose,target;final String? devCode;final bool busy;final bool phoneDone;
-  final TextEditingController controller;final int resendIn;final VoidCallback? onResend,onBack;
-  const _RegCodeStep({required this.purpose,required this.target,required this.devCode,required this.busy,required this.controller,required this.resendIn,required this.phoneDone,this.onResend,this.onBack});
+  final TextEditingController controller;final int resendIn;final VoidCallback? onResend,onBack,onSkip;
+  const _RegCodeStep({required this.purpose,required this.target,required this.devCode,required this.busy,required this.controller,required this.resendIn,required this.phoneDone,this.onResend,this.onBack,this.onSkip});
   @override Widget build(BuildContext context){
     final s=S(context);
     return Container(key:const ValueKey('reg-code-step'),margin:const EdgeInsets.only(bottom:4),padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:context.cSurf,borderRadius:BorderRadius.circular(24),border:Border.all(color:context.cLine)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -762,11 +776,17 @@ class _RegCodeStep extends StatelessWidget{
         Container(width:double.infinity,padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:purple.withOpacity(.10),borderRadius:BorderRadius.circular(14),border:Border.all(color:purple.withOpacity(.35))),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           Text(s.regCodeDevNote,style:TextStyle(color:context.cMut,fontSize:11,height:1.35)),
           const SizedBox(height:6),
-          Text('Код: $devCode',style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900,letterSpacing:3,color:purple)),
+          Text('Код: $devCode',style:const TextStyle(fontSize:24,fontWeight:FontWeight.w900,letterSpacing:4,color:purple)),
+          const SizedBox(height:5),
+          Row(children:[Icon(Icons.check_circle_rounded,size:13,color:green),const SizedBox(width:5),Expanded(child:Text(s.regCodeInserted,style:TextStyle(color:green,fontSize:11,fontWeight:FontWeight.w800)))]),
         ])),
       ],
       const SizedBox(height:14),
       Row(children:[
+        if(onSkip!=null)...[
+          Expanded(child:TextButton(onPressed:onSkip,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(s.regSkip,textAlign:TextAlign.center,style:TextStyle(fontSize:12.5,color:context.cMut,fontWeight:FontWeight.w800)))),
+          const SizedBox(width:8),
+        ],
         Expanded(child:TextButton(onPressed:onBack,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(s.cancel))),
         const SizedBox(width:10),
         Expanded(flex:2,child:TextButton(onPressed:onResend,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(resendIn>0?'${s.regResendIn} $resendIn с':s.regCodeResend,textAlign:TextAlign.center,style:TextStyle(fontSize:12.5,color:resendIn>0?context.cMut:purple,fontWeight:FontWeight.w800)))),
@@ -3128,7 +3148,7 @@ class _ProfilePageState extends State<ProfilePage>{
       actions:[
         TextButton(onPressed:busy?null:()async{
           setD(()=>busy=true);
-          try{final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':target});setD(()=>dev=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString());}
+          try{final d=await Api.post('/auth/request-code',{'purpose':purpose,'target':target});setD(()=>{dev=(d['devCode']??'').toString().isEmpty?null:(d['devCode']??'').toString();if(dev!=null)ctl.text=dev!;});}
           catch(e){if(ctx.mounted)Navigator.pop(ctx);snack(friendlyError(e,s));return;}
           setD(()=>busy=false);
         },child:Text(dev==null?s.regCodeTitle:s.regCodeResend)),
