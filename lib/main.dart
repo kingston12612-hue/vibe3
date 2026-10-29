@@ -1262,7 +1262,7 @@ class _ChatsState extends State<Chats>{
                       color:pink,
                       child:ListView(
                         physics:const AlwaysScrollableScrollPhysics(),
-                        children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!),const SizedBox(height:14),Center(child:FilledButton.tonal(onPressed:(){setState(()=>loading=true);load();},icon:const Icon(Icons.refresh_rounded),child:Text(s.retry))),const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:34),child:Text(s.wakingUp,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:11.5)))],
+                        children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!),const SizedBox(height:14),Center(child:FilledButton.tonalIcon(onPressed:(){setState(()=>loading=true);load();},icon:const Icon(Icons.refresh_rounded),label:Text(s.retry))),const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:34),child:Text(s.wakingUp,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:11.5)))],
                       ),
                     )
                   :filtered.isEmpty
