@@ -12,11 +12,20 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:audioplayers/audioplayers.dart';
+import 'callkit.dart';
+import 'mediaview.dart';
 
 String apiBase=const String.fromEnvironment('VIBE_API',defaultValue:'https://vibe3-api.onrender.com');
 const bg=Color(0xFF0A0A10),surface=Color(0xFF15151D),surface2=Color(0xFF1C1C26),stroke=Color(0xFF282833),green=Color(0xFF59E391);
 const muted=Color(0xFF9193A5),purple=Color(0xFF9B6BFF),blue=Color(0xFF6FA8FF),pink=Color(0xFFE76BD0);
 const brandGrad=[pink,purple];
+
+// Глобальное состояние: какой чат открыт (чтобы не показывать баннер в нём),
+// версия списка чатов (reload при удалении чужим участником), живые тумблеры приватности
+String? activeOpenChatId;
+final chatsChanged=ValueNotifier<int>(0);
+bool gShowOnline=true,gShowTyping=true;
 
 Future<void> main()async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +47,7 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
- static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.0.8'})).timeout(const Duration(seconds:5));}catch(_){}}
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.1.0'})).timeout(const Duration(seconds:5));}catch(_){}}
  // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
  static Future<void> _ensureAwake()async{
   for(int i=0;i<8;i++){
@@ -57,6 +66,7 @@ class Api{
  static Future<dynamic> get(String path)=>_guard(()async{final r=await http.get(Uri.parse('$apiBase$path'),headers:await headers()).timeout(const Duration(seconds:60));if(r.statusCode<200||r.statusCode>=300)throw Exception('http_${r.statusCode}');return jsonDecode(r.body);});
  static Future<dynamic> post(String path,Map<String,dynamic> body)=>_guard(()async{final r=await http.post(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:60));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;});
  static Future<dynamic> put(String path,Map<String,dynamic> body)=>_guard(()async{final r=await http.put(Uri.parse('$apiBase$path'),headers:await headers(),body:jsonEncode(body)).timeout(const Duration(seconds:60));dynamic d;try{d=jsonDecode(r.body);}catch(_){d={};}if(r.statusCode<200||r.statusCode>=300)throw Exception(d is Map&&d['error']!=null?'${d['error']}:http_${r.statusCode}':'http_${r.statusCode}');return d;});
+ static Future<dynamic> delete(String path)=>_guard(()async{final r=await http.delete(Uri.parse('$apiBase$path'),headers:await headers()).timeout(const Duration(seconds:60));if(r.statusCode<200||r.statusCode>=300)throw Exception('http_${r.statusCode}');try{return jsonDecode(r.body);}catch(_){return{};}});
 }
 
 class AppStrings {
@@ -109,7 +119,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.0.9';
+  String get version=>'v1.1.0';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -153,6 +163,36 @@ class AppStrings {
   String get cancelRecording=>ru?'Отменить запись':'Cancel recording';
   String get mediaTooLarge=>ru?'Файл слишком большой (максимум 7 МБ).':'File is too large (7 MB maximum).';
   String get mediaFailed=>ru?'Не удалось отправить медиа':'Could not send media';
+  String get incomingCall=>ru?'Входящий звонок':'Incoming call';
+  String get ringing=>ru?'Вызов...':'Ringing...';
+  String get connecting=>ru?'Соединение...':'Connecting...';
+  String get callEnded=>ru?'Звонок завершён':'Call ended';
+  String get declined=>ru?'Отклонено':'Declined';
+  String get missedCall=>ru?'Пропущен':'Missed';
+  String get accept=>ru?'Принять':'Accept';
+  String get decline=>ru?'Отклонить':'Decline';
+  String get callFailed=>ru?'Не удалось позвонить':'Could not place the call';
+  String get groupOnlyCall=>ru?'Звонки работают в личных чатах':'Calls work in direct chats';
+  String get noCalls=>ru?'Звонков пока нет':'No calls yet';
+  String get noCallsSub=>ru?'История звонков появится здесь':'Your call history will appear here';
+  String get copy=>ru?'Копировать':'Copy';
+  String get copied=>ru?'Скопировано':'Copied';
+  String get deleteMsg=>ru?'Удалить сообщение':'Delete message';
+  String get deleteMsgConfirm=>ru?'Удалить это сообщение?':'Delete this message?';
+  String get delete=>ru?'Удалить':'Delete';
+  String get deleteChat=>ru?'Удалить чат':'Delete chat';
+  String get deleteChatConfirm=>ru?'Удалить чат? У собеседника он останется.':'Delete this chat? Your peer keeps theirs.';
+  String get chatDeleted=>ru?'Чат удалён':'Chat deleted';
+  String get markRead=>ru?'Отметить прочитанным':'Mark as read';
+  String get createGroup=>ru?'Создать группу':'Create group';
+  String get groupName=>ru?'Название группы':'Group name';
+  String get groupCreated=>ru?'Группа создана':'Group created';
+  String get members=>ru?'Участники':'Members';
+  String get addMember=>ru?'Добавить участника':'Add member';
+  String get memberAdded=>ru?'Участник добавлен':'Member added';
+  String get showOnline=>ru?'Показывать «в сети»':'Show online status';
+  String get showTyping=>ru?'Показывать «печатает...»':'Show typing indicator';
+  String get privacyRealSub=>ru?'Эти настройки работают сразу':'These settings apply instantly';
 }
 
 AppStrings S(BuildContext c)=>AppStrings(Localizations.localeOf(c).languageCode=='ru');
@@ -201,6 +241,8 @@ class _VibeState extends State<VibeApp>{
       email=p.getString('email')??'';
       username=p.getString('username')??'';
       logged=p.getString('token')!=null;
+      gShowOnline=p.getBool('show_online')??true;
+      gShowTyping=p.getBool('show_typing')??true;
       ready=true;
     });
   }
@@ -619,6 +661,40 @@ class Shell extends StatefulWidget{
 }
 class _ShellState extends State<Shell>{
   int tab=0;
+  IO.Socket? gsock;
+  Map<String,dynamic>? banner;Timer? bannerHide;bool incomingOpen=false;
+  @override void initState(){super.initState();_wire();}
+  @override void dispose(){bannerHide?.cancel();super.dispose();}
+  Future<void> _wire()async{
+    try{gsock=await CallKit.socket();}catch(_){return;}
+    gsock!.on('notify',_onNotify);
+    gsock!.on('call',_onCall);
+    gsock!.on('call:end',_onCallEnd);
+    gsock!.on('chatDeleted',(_)=>chatsChanged.value++);
+  }
+  void _onNotify(d){
+    if(d is! Map||CallKit.inCall)return;
+    if(widget.notifications!=true)return; // живой тумблер уведомлений
+    if((d['chatId']??'').toString()==activeOpenChatId)return;
+    if(!mounted)return;
+    SystemSound.play(SystemSoundType.alert);
+    setState(()=>banner=Map<String,dynamic>.from(d));
+    bannerHide?.cancel();
+    bannerHide=Timer(const Duration(seconds:4),(){if(mounted)setState(()=>banner=null);});
+  }
+  void _onCall(d){
+    if(d is! Map||CallKit.inCall||incomingOpen)return;
+    incomingOpen=true;
+    showDialog(context:context,barrierDismissible:false,builder:(_)=>IncomingScreen(data:d.cast<String,dynamic>(),onClosed:()=>incomingOpen=false));
+  }
+  void _onCallEnd(_){
+    if(incomingOpen&&mounted){incomingOpen=false;Navigator.of(context,rootNavigator:true).pop();}
+  }
+  Future<void> _openBanner()async{
+    final b=banner;if(b==null)return;
+    setState(()=>banner=null);
+    await openChat(Chat((b['chatId']??'').toString(),(b['fromName']??'?').toString(),(b['body']??'').toString(),''));
+  }
   Future<void> openChat(Chat x)async{
     await Navigator.push(context,MaterialPageRoute(builder:(_)=>ChatPage(chat:x)));
   }
@@ -638,9 +714,9 @@ class _ShellState extends State<Shell>{
     final current=tab==0
       ?Chats(onOpen:openChat,onNewChat:()=>setState(()=>tab=1))
       :tab==1
-        ?Contacts(onOpen:openPerson)
+        ?Contacts(onOpen:openPerson,onOpenGroup:openChat)
         :tab==2
-          ?const Calls()
+          ?Calls(onOpenChat:openChat)
           :Settings(
               name:widget.name,
               username:widget.username,
@@ -679,6 +755,10 @@ class _ShellState extends State<Shell>{
                 ),
                 child:KeyedSubtree(key:ValueKey(tab),child:current),
               ),
+            ),
+            if(banner!=null)Positioned(
+              top:8,left:14,right:14,
+              child:_EntryAnimation(delay:const Duration(milliseconds:10),child:_NotifyBanner(data:banner!,onTap:_openBanner,onClose:()=>setState(()=>banner=null))),
             ),
           ],
         ),
@@ -748,7 +828,9 @@ class Chats extends StatefulWidget{
 }
 class _ChatsState extends State<Chats>{
   String q='';bool loading=true;List<Chat> list=[];String? error;int chip=0;
-  @override void initState(){super.initState();load();}
+  @override void initState(){super.initState();load();chatsChanged.addListener(_reload);}
+  @override void dispose(){chatsChanged.removeListener(_reload);super.dispose();}
+  void _reload(){if(mounted)load();}
   Future<void> load()async{
     try{
       final a=await Api.get('/chats');
@@ -771,6 +853,18 @@ class _ChatsState extends State<Chats>{
   Future<void> openTile(Chat x)async{
     await widget.onOpen(x);
     if(mounted)load();
+  }
+  Future<void> _chatSheet(Chat c)async{
+    final s=S(context);
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
+      if(c.unread>0)ListTile(leading:const Icon(Icons.done_all_rounded),title:Text(s.markRead),onTap:(){Navigator.pop(context);Api.post('/chats/'+c.id+'/read',{}).then((_){if(mounted)load();}).catchError((_){});}),
+      ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.deleteChat),onTap:()async{
+        Navigator.pop(context);
+        final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text(s.deleteChat),content:Text(s.deleteChatConfirm),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(s.delete))]));
+        if(ok!=true)return;
+        try{await Api.delete('/chats/'+c.id);if(mounted){load();ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.chatDeleted)));}}catch(_){}
+      }),
+    ])));
   }
   @override Widget build(BuildContext context){
     final s=S(context);
@@ -859,7 +953,7 @@ class _ChatsState extends State<Chats>{
                       separatorBuilder:(_,__)=>const SizedBox(height:9),
                       itemBuilder:(_,i)=>_EntryAnimation(
                         delay:Duration(milliseconds:i>7?320:i*45),
-                        child:Tile(chat:filtered[i],tap:()=>openTile(filtered[i])),
+                        child:Tile(chat:filtered[i],tap:()=>openTile(filtered[i]),longPress:()=>_chatSheet(filtered[i])),
                       ),
                     ),
             ),
@@ -1033,14 +1127,15 @@ String shortTime(String raw){
 }
 
 class Tile extends StatelessWidget{
-  final Chat chat;final VoidCallback tap;
-  const Tile({super.key,required this.chat,required this.tap});
+  final Chat chat;final VoidCallback tap;final VoidCallback? longPress;
+  const Tile({super.key,required this.chat,required this.tap,this.longPress});
   @override Widget build(BuildContext context){
     final s=S(context);
     return Material(
       type:MaterialType.transparency,
       child:InkWell(
         onTap:tap,
+        onLongPress:longPress,
         borderRadius:BorderRadius.circular(22),
         splashColor:pink.withOpacity(.06),
         highlightColor:pink.withOpacity(.035),
@@ -1119,11 +1214,11 @@ class ChatPage extends StatefulWidget{
 class _ChatState extends State<ChatPage>{
   final input=TextEditingController();final scroll=ScrollController();List<Msg> msgs=[];
   final recorder=AudioRecorder();
-  bool loading=true,sending=false,peerTyping=false,peerOnline=false;IO.Socket? socket;String myId='',peerId='';
+  bool loading=true,sending=false,peerTyping=false,peerOnline=false,peerRead=false;IO.Socket? socket;String myId='',peerId='';
   int effect=0;double fxIntensity=.55;Timer? typingTimer,typingClear;
 
-  @override void initState(){super.initState();load();restoreFx();Api.debugLog('chat open id=${widget.chat.id} name=${widget.chat.name}');}
-  @override void dispose(){socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();typingTimer?.cancel();typingClear?.cancel();super.dispose();}
+  @override void initState(){super.initState();activeOpenChatId=widget.chat.id;load();restoreFx();Api.debugLog('chat open id=${widget.chat.id} name=${widget.chat.name}');}
+  @override void dispose(){if(activeOpenChatId==widget.chat.id)activeOpenChatId=null;socket?.disconnect();socket?.dispose();recorder.dispose();input.dispose();scroll.dispose();typingTimer?.cancel();typingClear?.cancel();super.dispose();}
   Future<void> restoreFx()async{
     final p=await SharedPreferences.getInstance();
     if(!mounted)return;
@@ -1164,7 +1259,7 @@ class _ChatState extends State<ChatPage>{
   Future<void> connectRealtime()async{
     final t=await Api.token();if(t==null)return;
     socket=IO.io(apiBase,IO.OptionBuilder().setTransports(['websocket']).setAuth({'token':t}).disableAutoConnect().build());
-    socket!.onConnect((_){socket!.emit('joinChat',widget.chat.id);socket!.emit('presence',true);});
+    socket!.onConnect((_){socket!.emit('joinChat',widget.chat.id);if(gShowOnline)socket!.emit('presence',true);});
     socket!.on('message',(data){
       if(!mounted||data is! Map)return;
       final id=(data['id']??'').toString();if(id.isEmpty||msgs.any((m)=>m.id==id))return;
@@ -1189,6 +1284,16 @@ class _ChatState extends State<ChatPage>{
       typingClear?.cancel();
       if(typing)typingClear=Timer(const Duration(seconds:4),(){if(mounted)setState(()=>peerTyping=false);});
     });
+    socket!.on('read',(d){
+      if(!mounted||d is! Map)return;
+      if(((d['userId']??'').toString())==myId)return;
+      if(!peerRead)setState(()=>peerRead=true);
+    });
+    socket!.on('messageDeleted',(d){
+      if(!mounted||d is! Map)return;
+      final id=(d['id']??'').toString();
+      if(id.isNotEmpty&&msgs.any((m)=>m.id==id))setState(()=>msgs.removeWhere((m)=>m.id==id));
+    });
     socket!.on('presence',(data){
       if(!mounted||data is! Map)return;
       if(((data['userId']??'').toString())!=myId&&peerId.isNotEmpty&&((data['userId']??'').toString())==peerId){
@@ -1198,6 +1303,7 @@ class _ChatState extends State<ChatPage>{
     socket!.connect();
   }
   void onInputChanged(String v){
+    if(!gShowTyping)return; // приватность: не показываем «печатает...»
     typingTimer?.cancel();
     socket?.emit('typing',{'chatId':widget.chat.id,'typing':true});
     typingTimer=Timer(const Duration(milliseconds:2200),(){socket?.emit('typing',{'chatId':widget.chat.id,'typing':false});});
@@ -1405,7 +1511,7 @@ class _ChatState extends State<ChatPage>{
                           final showChip=i==0||_dayKey(msgs[i-1].createdAt)!=_dayKey(msgs[i].createdAt);
                           return Column(children:[
                             if(showChip)_DateChip(d:msgs[i].createdAt),
-                            Bubble(key:ValueKey(msgs[i].id),msg:msgs[i]),
+                            Bubble(key:ValueKey(msgs[i].id),msg:msgs[i],read:peerRead,chatId:widget.chat.id),
                           ]);
                         },
                       ),
@@ -1436,13 +1542,16 @@ class _ChatState extends State<ChatPage>{
   Future<void> showContact(BuildContext context)async{
     final s=S(context);
     String username='';
-    try{
-      final d=await Api.get('/chats/'+widget.chat.id+'/peer');
-      username=(d['username']??'').toString();
-    }catch(_){}
+    if(!widget.chat.isGroup){
+      try{
+        final d=await Api.get('/chats/'+widget.chat.id+'/peer');
+        username=(d['username']??'').toString();
+      }catch(_){}
+    }
     if(!context.mounted)return;
     showModalBottomSheet(
       context:context,
+      isScrollControlled:true,
       showDragHandle:true,
       builder:(_)=>SafeArea(
         child:Padding(
@@ -1458,6 +1567,7 @@ class _ChatState extends State<ChatPage>{
                 Text('@'+username,style:const TextStyle(color:muted,fontSize:14)),
               ],
               const SizedBox(height:15),
+              if(widget.chat.isGroup)_GroupMembers(chatId:widget.chat.id),
               ListTile(leading:const Icon(Icons.auto_awesome_rounded),title:Text(s.effects),subtitle:Text(s.intensity,style:const TextStyle(color:muted)),onTap:(){Navigator.pop(context);showEffects(context);}),
               ListTile(leading:const Icon(Icons.call_outlined),title:Text(s.voiceCall),onTap:(){Navigator.pop(context);openCall(context,false);}),
               ListTile(leading:const Icon(Icons.videocam_outlined),title:Text(s.videoCall),onTap:(){Navigator.pop(context);openCall(context,true);}),
@@ -1483,7 +1593,13 @@ class _ChatState extends State<ChatPage>{
       ListTile(leading:const Icon(Icons.mic_none_rounded),title:Text(s.voiceMessage),onTap:(){Navigator.pop(context);recordVoice();}),
     ])));
   }
-  void openCall(BuildContext context,bool video)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(name:widget.chat.name,video:video)));
+  void openCall(BuildContext context,bool video){
+    if(widget.chat.isGroup){
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(S(context).groupOnlyCall)));
+      return;
+    }
+    Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(call:CallStart(chatId:widget.chat.id,name:widget.chat.name,peerId:peerId,video:video))));
+  }
 }
 
 class _DateChip extends StatelessWidget{
@@ -1544,41 +1660,101 @@ class _TypingBubbleState extends State<_TypingBubble> with SingleTickerProviderS
 }
 
 class Bubble extends StatefulWidget{
-  final Msg msg;const Bubble({super.key,required this.msg});
+  final Msg msg;final bool read;final String chatId;
+  const Bubble({super.key,required this.msg,this.read=false,this.chatId=''});
   @override State<Bubble> createState()=>_BubbleState();
 }
 class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
   late final AnimationController controller;
   late final Animation<double> scale;
+  AudioPlayer? player;StreamSubscription? subPos,subState,subDur;bool playing=false;Duration apos=Duration.zero,adur=Duration.zero;
   @override void initState(){
     super.initState();
     controller=AnimationController(vsync:this,duration:const Duration(milliseconds:280));
     scale=Tween<double>(begin:.90,end:1).animate(CurvedAnimation(parent:controller,curve:Curves.easeOutBack));
     controller.forward();
   }
-  @override void dispose(){controller.dispose();super.dispose();}
+  @override void dispose(){controller.dispose();subPos?.cancel();subState?.cancel();subDur?.cancel();player?.dispose();super.dispose();}
+  Future<void> _playAudio()async{
+    final s=S(context);
+    try{
+      if(playing){await player?.pause();if(mounted)setState(()=>playing=false);return;}
+      if(player==null){
+        player=AudioPlayer();
+        subPos=player!.onPositionChanged.listen((d){if(mounted)setState(()=>apos=d);});
+        subDur=player!.onDurationChanged.listen((d){if(mounted)setState(()=>adur=d);});
+        subState=player!.onPlayerStateChanged.listen((st){if(st==PlayerState.completed&&mounted){setState((){playing=false;apos=Duration.zero;});}});
+      }
+      final bytes=base64Decode(widget.msg.mediaUrl.substring(widget.msg.mediaUrl.indexOf(',')+1));
+      await player!.play(BytesSource(bytes,mimeType:'audio/mp4'));
+      if(mounted)setState(()=>playing=true);
+    }catch(_){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.mediaFailed)));
+    }
+  }
+  Future<void> _msgSheet()async{
+    final s=S(context);final msg=widget.msg;
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:Wrap(children:[
+      if(msg.type=='text'&&msg.text.isNotEmpty)
+        ListTile(leading:const Icon(Icons.copy_rounded),title:Text(s.copy),onTap:(){Navigator.pop(context);Clipboard.setData(ClipboardData(text:msg.text));ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.copied)));}),
+      if(msg.type=='image'||msg.type=='video'||msg.type=='audio')
+        ListTile(leading:Icon(msg.type=='image'?Icons.image_rounded:(msg.type=='video'?Icons.play_circle_rounded:Icons.graphic_eq_rounded)),title:Text(msg.type=='image'?(s.ru?'Открыть фото':'Open photo'):(msg.type=='video'?(s.ru?'Смотреть видео':'Play video'):(s.ru?'Слушать':'Listen'))),onTap:(){Navigator.pop(context);_openMedia();}),
+      if(msg.mine&&widget.chatId.isNotEmpty)
+        ListTile(leading:const Icon(Icons.delete_outline_rounded),title:Text(s.deleteMsg),onTap:()async{
+          Navigator.pop(context);
+          final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(title:Text(s.deleteMsg),content:Text(s.deleteMsgConfirm),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(s.delete))]));
+          if(ok!=true)return;
+          try{await Api.delete('/chats/'+widget.chatId+'/messages/'+msg.id);}catch(_){}
+        }),
+    ])));
+  }
+  void _openMedia(){
+    if(widget.msg.type=='image'){Navigator.push(context,MaterialPageRoute(builder:(_)=>ImageViewerPage(mediaUrl:widget.msg.mediaUrl,name:widget.msg.text)));}
+    else if(widget.msg.type=='video'){Navigator.push(context,MaterialPageRoute(builder:(_)=>VideoViewerPage(mediaUrl:widget.msg.mediaUrl,name:widget.msg.text)));}
+    else if(widget.msg.type=='audio'){_playAudio();}
+  }
   @override Widget build(BuildContext context){
     final dark=Theme.of(context).brightness==Brightness.dark;
     final msg=widget.msg;
+    final s=S(context);
     final cs=Theme.of(context).colorScheme;
     final incoming=dark?surface2:Colors.white;
     final time=_fmtTime(msg.createdAt);
     Widget content;
     if(msg.type=='image'&&msg.mediaUrl.isNotEmpty){
-      content=Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
-        ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover)),
+      content=GestureDetector(onTap:_openMedia,onLongPress:_msgSheet,child:Column(crossAxisAlignment:CrossAxisAlignment.end,children:[
+        ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(msg.mediaUrl.substring(msg.mediaUrl.indexOf(',')+1)),width:230,height:230,fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(width:230,height:230,color:surface,child:const Icon(Icons.broken_image_rounded,color:muted)))),
         const SizedBox(height:5),
-        _MsgMeta(time:time,mine:msg.mine,dark:dark),
-      ]);
+        _MsgMeta(time:time,mine:msg.mine,dark:dark,read:widget.read),
+      ]));
+    }else if(msg.type=='video'&&msg.mediaUrl.isNotEmpty){
+      content=GestureDetector(onTap:_openMedia,onLongPress:_msgSheet,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Container(width:230,height:140,decoration:BoxDecoration(color:Colors.black.withOpacity(.45),borderRadius:BorderRadius.circular(12)),child:const Center(child:Icon(Icons.play_circle_fill_rounded,color:Colors.white,size:52))),
+        const SizedBox(height:6),
+        Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:cs.onSurface,fontSize:13)),
+        const SizedBox(height:4),
+        _MsgMeta(time:time,mine:msg.mine,dark:dark,read:widget.read),
+      ]));
+    }else if(msg.type=='audio'&&msg.mediaUrl.isNotEmpty){
+      final total=adur.inSeconds>0?adur.inSeconds:0;
+      final prog=total>0?(apos.inSeconds/total).clamp(0.0,1.0):0.0;
+      content=GestureDetector(onTap:_openMedia,onLongPress:_msgSheet,child:Row(mainAxisSize:MainAxisSize.min,children:[
+        Icon(playing?Icons.pause_circle_rounded:Icons.play_circle_fill_rounded,color:msg.mine?Colors.white:pink,size:36),
+        const SizedBox(width:8),
+        Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          SizedBox(width:130,child:ClipRRect(borderRadius:BorderRadius.circular(4),child:LinearProgressIndicator(value:prog,minHeight:4,backgroundColor:msg.mine?Colors.white24:stroke,valueColor:AlwaysStoppedAnimation(msg.mine?Colors.white:pink)))),
+          const SizedBox(height:4),
+          Text(playing||apos>Duration.zero?'${apos.inMinutes.remainder(60).toString().padLeft(2,'0')}:${apos.inSeconds.remainder(60).toString().padLeft(2,'0')}':s.voiceMessage,style:TextStyle(color:msg.mine?Colors.white70:cs.onSurface,fontSize:11.5)),
+        ]),
+        const SizedBox(width:8),
+        _MsgMeta(time:time,mine:msg.mine,dark:dark,read:widget.read),
+      ]));
     }else{
-      content=Row(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.end,children:[
-        if(msg.type=='video')const Icon(Icons.videocam_rounded,size:20,color:Colors.white),
-        if(msg.type=='audio')const Icon(Icons.mic_rounded,size:20,color:Colors.white),
-        if(msg.type!='text')const SizedBox(width:7),
+      content=GestureDetector(onLongPress:_msgSheet,child:Row(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.end,children:[
         Flexible(child:Text(msg.text,style:TextStyle(color:msg.mine?Colors.white:cs.onSurface,fontSize:15,height:1.3))),
         const SizedBox(width:8),
-        _MsgMeta(time:time,mine:msg.mine,dark:dark),
-      ]);
+        _MsgMeta(time:time,mine:msg.mine,dark:dark,read:widget.read),
+      ]));
     }
     return Align(
       alignment:msg.mine?Alignment.centerRight:Alignment.centerLeft,
@@ -1606,16 +1782,101 @@ class _BubbleState extends State<Bubble> with SingleTickerProviderStateMixin{
 }
 
 class _MsgMeta extends StatelessWidget{
-  final String time;final bool mine;final bool dark;
-  const _MsgMeta({required this.time,required this.mine,required this.dark});
+  final String time;final bool mine;final bool dark;final bool read;
+  const _MsgMeta({required this.time,required this.mine,required this.dark,this.read=false});
   @override Widget build(BuildContext context){
     return Row(mainAxisSize:MainAxisSize.min,children:[
       Text(time,style:TextStyle(color:mine?Colors.white.withOpacity(.75):muted,fontSize:10.5,fontWeight:FontWeight.w700)),
       if(mine) ...[
         const SizedBox(width:3),
-        Icon(Icons.done_all_rounded,size:13,color:Colors.white.withOpacity(.75)),
+        Icon(read?Icons.done_all_rounded:Icons.done_rounded,size:13,color:read?const Color(0xFF8FF7C1):Colors.white.withOpacity(.75)),
       ],
     ]);
+  }
+}
+
+// Участники группы + добавление (живые кнопки)
+class _GroupMembers extends StatefulWidget{
+  final String chatId;const _GroupMembers({required this.chatId});
+  @override State<_GroupMembers> createState()=>_GroupMembersState();
+}
+class _GroupMembersState extends State<_GroupMembers>{
+  List<UserX> members=[];bool loading=true;
+  @override void initState(){super.initState();_load();}
+  Future<void> _load()async{
+    try{
+      final a=await Api.get('/chats/'+widget.chatId+'/members');
+      members=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'').toString(),(x['username']??'').toString())).toList();
+    }catch(_){}
+    if(mounted)setState(()=>loading=false);
+  }
+  void _add(){
+    final s=S(context);
+    showModalBottomSheet(context:context,isScrollControlled:true,showDragHandle:true,builder:(_)=>SafeArea(child:SizedBox(height:430,child:StatefulBuilder(builder:(ctx,setSheet){
+      List<UserX> found=[];bool searching=false;String lastQ='';
+      Future<void> doSearch(String q)async{
+        if(q==lastQ)return;lastQ=q;
+        setSheet(()=>searching=true);
+        try{final a=await Api.get('/users?q='+Uri.encodeQueryComponent(q));found=(a as List).map((x)=>UserX((x['id']??'').toString(),(x['display_name']??'User').toString(),(x['username']??'').toString())).toList();}catch(_){found=[];}
+        setSheet(()=>searching=false);
+      }
+      return Column(children:[
+        Padding(padding:const EdgeInsets.fromLTRB(16,10,16,6),child:SearchBox(hint:s.addMember,onChanged:(v){doSearch(v.trim());})),
+        Expanded(child:searching
+          ?const Center(child:CircularProgressIndicator(strokeWidth:2))
+          :found.isEmpty
+            ?Center(child:Text(s.noPeople,style:const TextStyle(color:muted)))
+            :ListView.builder(itemCount:found.length,itemBuilder:(_,i)=>ListTile(
+              leading:Avatar(name:found[i].name,size:40),
+              title:Text(found[i].name),
+              subtitle:Text('@'+found[i].username,style:const TextStyle(color:muted,fontSize:12)),
+              onTap:()async{
+                try{await Api.post('/chats/'+widget.chatId+'/members',{'userId':found[i].id});if(ctx.mounted)Navigator.pop(ctx);_load();if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.memberAdded)));}catch(_){}
+              },
+            ))),
+      ]);
+    }))));
+  }
+  @override Widget build(BuildContext context){
+    final s=S(context);
+    return Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+      Padding(padding:const EdgeInsets.only(bottom:4),child:Text(s.members+' · ${members.length}',style:const TextStyle(color:muted,fontSize:12,fontWeight:FontWeight.w800))),
+      if(loading)const Padding(padding:EdgeInsets.all(8),child:CircularProgressIndicator(strokeWidth:2)),
+      ...members.take(12).map((m)=>Padding(padding:const EdgeInsets.symmetric(vertical:1),child:Row(children:[Avatar(name:m.name,size:34),const SizedBox(width:10),Expanded(child:Text(m.name,style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700,overflow:TextOverflow.ellipsis)))]))),
+      ListTile(leading:const Icon(Icons.person_add_alt_rounded),title:Text(s.addMember),onTap:_add,contentPadding:EdgeInsets.zero),
+    ]);
+  }
+}
+
+// Баннер нового сообщения (реальные уведомления внутри приложения)
+class _NotifyBanner extends StatelessWidget{
+  final Map<String,dynamic> data;final VoidCallback onTap,onClose;
+  const _NotifyBanner({required this.data,required this.onTap,required this.onClose});
+  @override Widget build(BuildContext context){
+    final name=(data['fromName']??'?').toString();
+    final body=(data['body']??'').toString();
+    return Material(
+      color:surface,
+      borderRadius:BorderRadius.circular(18),
+      child:InkWell(
+        onTap:onTap,
+        borderRadius:BorderRadius.circular(18),
+        child:Container(
+          padding:const EdgeInsets.fromLTRB(10,10,6,10),
+          decoration:BoxDecoration(borderRadius:BorderRadius.circular(18),border:Border.all(color:stroke)),
+          child:Row(children:[
+            Avatar(name:name,size:42),
+            const SizedBox(width:11),
+            Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              Text(name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:14.5)),
+              const SizedBox(height:2),
+              Text(body,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:muted,fontSize:12.5)),
+            ])),
+            IconButton(icon:const Icon(Icons.close_rounded,size:18,color:muted),onPressed:onClose),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
@@ -1856,7 +2117,9 @@ class _EffectPainter extends CustomPainter{
   @override bool shouldRepaint(covariant _EffectPainter oldDelegate)=>oldDelegate.effect!=effect||oldDelegate.intensity!=intensity||oldDelegate.dark!=dark;
 }
 class Contacts extends StatefulWidget{
-  final ValueChanged<UserX> onOpen;const Contacts({super.key,required this.onOpen});@override State<Contacts> createState()=>_ContactsState();
+  final ValueChanged<UserX> onOpen;final ValueChanged<Chat>? onOpenGroup;
+  const Contacts({super.key,required this.onOpen,this.onOpenGroup});
+  @override State<Contacts> createState()=>_ContactsState();
 }
 class _ContactsState extends State<Contacts>{
   String q='';bool loading=true;List<UserX> people=[];String? error;
@@ -1869,10 +2132,31 @@ class _ContactsState extends State<Contacts>{
     }catch(e){people=[];error=e.toString();}
     if(mounted)setState(()=>loading=false);
   }
+  Future<void> _createGroup()async{
+    final s=S(context);
+    final c=TextEditingController();
+    final ok=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+      title:Text(s.createGroup),
+      content:TextField(controller:c,autofocus:true,decoration:InputDecoration(hintText:s.groupName,filled:true,fillColor:bg,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:stroke)),isDense:true)),
+      actions:[
+        TextButton(onPressed:()=>Navigator.pop(ctx,false),child:Text(s.cancel)),
+        FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:Text(s.createGroup)),
+      ],
+    ));
+    if(ok!=true)return;
+    final title=c.text.trim();
+    if(title.length<2)return;
+    try{
+      final d=await Api.post('/chats',{'title':title,'isGroup':true});
+      if(!mounted)return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(s.groupCreated)));
+      widget.onOpenGroup?.call(Chat((d['id']??'').toString(),title,'','',isGroup:true));
+    }catch(_){}
+  }
   @override Widget build(BuildContext context){
     final s=S(context);
     return Column(children:[
-      Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
+      Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.people,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.createGroup,onPressed:()=>_createGroup(),icon:const Icon(Icons.group_add_rounded)),IconButton(tooltip:s.refresh,onPressed:search,icon:const Icon(Icons.refresh_rounded))])),
       Padding(
         padding:const EdgeInsets.fromLTRB(20,0,20,2),
         child:_GlassSearchField(hint:s.findPeopleHint,onChanged:(v){q=v.trim();search();}),
@@ -1910,11 +2194,74 @@ class _ContactsState extends State<Contacts>{
   }
 }
 
-class Calls extends StatelessWidget{
-  const Calls({super.key});
+class Calls extends StatefulWidget{
+  final ValueChanged<Chat> onOpenChat;
+  const Calls({super.key,required this.onOpenChat});
+  @override State<Calls> createState()=>_CallsState();
+}
+class _CallsState extends State<Calls>{
+  bool loading=true;List<Map<String,dynamic>> list=[];String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load()async{
+    if(!mounted)return;setState(()=>loading=true);
+    try{
+      final a=await Api.get('/calls');
+      list=(a as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();
+      error=null;
+    }catch(e){error=e.toString();list=[];}
+    if(mounted)setState(()=>loading=false);
+  }
   @override Widget build(BuildContext context){
     final s=S(context);
-    return Column(children:[Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Align(alignment:Alignment.centerLeft,child:Text(s.calls,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900)))),Expanded(child:EmptyState(icon:Icons.call_rounded,title:s.callsNext,sub:s.callsSub))]);
+    return Column(children:[
+      Padding(padding:const EdgeInsets.fromLTRB(20,18,20,12),child:Row(children:[Text(s.calls,style:const TextStyle(fontSize:29,fontWeight:FontWeight.w900,letterSpacing:-.7)),const Spacer(),IconButton(tooltip:s.refresh,onPressed:load,icon:const Icon(Icons.refresh_rounded))])),
+      Expanded(child:loading
+        ?const Center(child:CircularProgressIndicator(color:pink))
+        :error!=null
+          ?ListView(children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)])
+          :list.isEmpty
+            ?ListView(children:[const SizedBox(height:140),EmptyState(icon:Icons.call_rounded,title:s.noCalls,sub:s.noCallsSub)])
+            :ListView.separated(
+              padding:const EdgeInsets.fromLTRB(12,3,12,24),itemCount:list.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
+              itemBuilder:(_,i){final c=list[i];
+                final dir=(c['direction']??'out').toString();
+                final status=(c['status']??'ended').toString();
+                final video=c['video']==true;
+                final dur=int.tryParse('${c['duration']??0}')??0;
+                final name=(c['title']??'?').toString();
+                final chatId=(c['chat_id']??'').toString();
+                final Color mark=status=='missed'?pink:(status=='declined'?const Color(0xFFFFB86B):green);
+                final IconData ic=dir=='out'?Icons.call_made_rounded:Icons.call_received_rounded;
+                final when=shortTime((c['created_at']??'').toString());
+                return _EntryAnimation(delay:Duration(milliseconds:i>7?320:i*45),child:Material(
+                  type:MaterialType.transparency,
+                  child:InkWell(
+                    borderRadius:BorderRadius.circular(22),
+                    splashColor:pink.withOpacity(.06),
+                    onTap:chatId.isEmpty?null:()=>widget.onOpenChat(Chat(chatId,name,'',when)),
+                    child:Container(
+                      padding:const EdgeInsets.symmetric(horizontal:6,vertical:10),
+                      decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),border:Border(bottom:BorderSide(color:stroke.withOpacity(.52),width:.7))),
+                      child:Row(children:[
+                        Avatar(name:name,size:52),const SizedBox(width:12),
+                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          Text(name,style:const TextStyle(fontWeight:FontWeight.w800)),
+                          const SizedBox(height:3),
+                          Row(children:[
+                            Icon(ic,size:14,color:mark),const SizedBox(width:4),
+                            Text(status=='ended'?'${(dur~/60).toString().padLeft(2,'0')}:${(dur%60).toString().padLeft(2,'0')}':(status=='missed'?s.missedCall:s.declined),style:const TextStyle(color:muted,fontSize:12.5)),
+                            if(video)...[const SizedBox(width:6),const Icon(Icons.videocam_rounded,size:13,color:muted)],
+                            const SizedBox(width:6),
+                            Text(when,style:const TextStyle(color:muted,fontSize:11)),
+                          ]),
+                        ])),
+                        IconButton(icon:const Icon(Icons.call_outlined,color:green),tooltip:s.voiceCall,onPressed:chatId.isEmpty?null:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CallPage(call:CallStart(chatId:chatId,name:name,video:false))))),
+                      ]),
+                    ),
+                  ),
+                ));},
+              )),
+    ]);
   }
 }
 
@@ -1981,7 +2328,7 @@ class Settings extends StatelessWidget{
       ),
       section(context,s.language,[ListTile(leading:const Icon(Icons.translate_rounded),title:Text(s.language),subtitle:Text(language=='ru'?s.russian:s.english,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>languagePicker(context))]),
       section(context,s.security,[
-        ListTile(leading:const Icon(Icons.lock_outline_rounded),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,s.privacy,s.privacyBody)),
+        ListTile(leading:const Icon(Icons.lock_outline_rounded),title:Text(s.privacy),subtitle:Text(s.privacySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>privacySheet(context)),
         ListTile(leading:const Icon(Icons.shield_outlined),title:Text(s.security),subtitle:Text(s.securitySub,style:const TextStyle(color:muted,fontSize:12)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,s.security,s.securityBody)),
       ]),
       section(context,s.about,[ListTile(leading:const Icon(Icons.info_outline_rounded),title:Text(s.about),subtitle:Text(s.version,style:const TextStyle(color:muted)),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>info(context,'vibe<3',s.aboutBody))]),
@@ -2036,125 +2383,22 @@ class Settings extends StatelessWidget{
       ],
     )));
   }
-  void info(BuildContext context,String title,String body)=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(title),content:Text(body),actions:[FilledButton(onPressed:()=>Navigator.pop(context),child:Text(S(context).ok))]));
-}
-
-class CallPage extends StatefulWidget{
-  final String name;final bool video;const CallPage({super.key,required this.name,required this.video});
-  @override State<CallPage> createState()=>_CallPageState();
-}
-class _CallPageState extends State<CallPage> with SingleTickerProviderStateMixin{
-  late final AnimationController orbit;
-  late final Timer timer;int seconds=0;
-  @override void initState(){
-    super.initState();
-    orbit=AnimationController(vsync:this,duration:const Duration(seconds:7))..repeat();
-    timer=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>seconds++);});
-  }
-  @override void dispose(){orbit.dispose();timer.cancel();super.dispose();}
-  String get clock=>'${(seconds~/60).toString().padLeft(2,'0')}:${(seconds%60).toString().padLeft(2,'0')}';
-  @override Widget build(BuildContext context){
+  void privacySheet(BuildContext context){
     final s=S(context);
-    return Scaffold(
-      backgroundColor:bg,
-      body:Stack(children:[
-        Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,colors:[bg,const Color(0xFF17111F),bg])))),
-        const Positioned(top:-130,right:-90,child:_Glow(size:300,color:Color(0x2E9B6BFF))),
-        const Positioned(bottom:-150,left:-110,child:_Glow(size:320,color:Color(0x2BE76BD0))),
-        SafeArea(child:Column(children:[
-          const SizedBox(height:26),
-          Text(widget.name,style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,letterSpacing:-.5)),
-          const SizedBox(height:5),
-          Text(clock,style:const TextStyle(color:muted,fontSize:15,fontWeight:FontWeight.w700,letterSpacing:2)),
-          const SizedBox(height:8),
-          Text(widget.video?s.videoCall:s.voiceCall+' · '+s.callConnect,style:const TextStyle(color:muted,fontSize:12)),
-          Expanded(
-            child:Center(
-              child:AnimatedBuilder(
-                animation:orbit,
-                builder:(context,_)=>SizedBox(
-                  width:260,height:260,
-                  child:Stack(alignment:Alignment.center,children:[
-                    CustomPaint(size:const Size(260,260),painter:_OrbitPainter(t:orbit.value)),
-                    Avatar(name:widget.name,size:150),
-                  ]),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding:const EdgeInsets.fromLTRB(24,0,24,10),
-            child:Row(mainAxisAlignment:MainAxisAlignment.spaceEvenly,children:[
-              _CallButton(icon:Icons.volume_up_rounded,label:s.ru?'динамик':'speaker',onTap:(){}),
-              _CallButton(icon:widget.video?Icons.videocam_off_rounded:Icons.videocam_rounded,label:s.ru?'видео':'video',onTap:(){}),
-              _CallButton(icon:Icons.mic_off_rounded,label:s.ru?'выкл. звук':'mute',onTap:(){}),
-            ]),
-          ),
-          Padding(
-            padding:const EdgeInsets.fromLTRB(24,4,24,26),
-            child:Row(mainAxisAlignment:MainAxisAlignment.spaceEvenly,children:[
-              _CallButton(icon:Icons.add_rounded,label:s.ru?'добавить':'add',onTap:(){}),
-              Container(
-                width:76,height:76,
-                decoration:BoxDecoration(
-                  gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:brandGrad),
-                  shape:BoxShape.circle,
-                  boxShadow:[BoxShadow(color:pink.withOpacity(.45),blurRadius:26,offset:const Offset(0,8))],
-                ),
-                child:Material(color:Colors.transparent,child:InkWell(
-                  customBorder:const CircleBorder(),
-                  onTap:()=>Navigator.pop(context),
-                  child:const Center(child:Icon(Icons.call_end_rounded,color:Colors.white,size:32)),
-                )),
-              ),
-              _CallButton(icon:Icons.more_horiz_rounded,label:s.ru?'ещё':'more',onTap:(){}),
-            ]),
-          ),
-        ])),
+    showModalBottomSheet(context:context,showDragHandle:true,builder:(_)=>SafeArea(child:StatefulBuilder(builder:(ctx,setSheet)=>Padding(
+      padding:const EdgeInsets.fromLTRB(20,8,20,24),
+      child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(s.privacy,style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+        const SizedBox(height:4),
+        Text(s.privacyRealSub,style:const TextStyle(color:muted,fontSize:12)),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowOnline,secondary:const Icon(Icons.visibility_rounded),title:Text(s.showOnline),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_online',v);gShowOnline=v;setSheet(()=>{});}),
+        SwitchListTile(contentPadding:EdgeInsets.zero,value:gShowTyping,secondary:const Icon(Icons.keyboard_rounded),title:Text(s.showTyping),onChanged:(v)async{final p=await SharedPreferences.getInstance();await p.setBool('show_typing',v);gShowTyping=v;setSheet(()=>{});}),
+        const SizedBox(height:6),
+        Text(s.privacyBody,style:const TextStyle(color:muted,fontSize:12,height:1.45)),
       ]),
-    );
+    ))));
   }
-}
-
-class _CallButton extends StatelessWidget{
-  final IconData icon;final String label;final VoidCallback onTap;
-  const _CallButton({required this.icon,required this.label,required this.onTap});
-  @override Widget build(BuildContext context){
-    return Column(mainAxisSize:MainAxisSize.min,children:[
-      Container(
-        width:62,height:62,
-        decoration:BoxDecoration(color:surface2.withOpacity(.85),shape:BoxShape.circle,border:Border.all(color:stroke)),
-        child:Material(color:Colors.transparent,child:InkWell(customBorder:const CircleBorder(),onTap:onTap,child:Center(child:Icon(icon,color:Colors.white,size:24)))),
-      ),
-      const SizedBox(height:7),
-      Text(label,style:const TextStyle(color:muted,fontSize:10.5,fontWeight:FontWeight.w700)),
-    ]);
-  }
-}
-
-class _OrbitPainter extends CustomPainter{
-  final double t;
-  _OrbitPainter({required this.t});
-  @override void paint(Canvas canvas,Size size){
-    final c=Offset(size.width/2,size.height/2);
-    canvas.drawCircle(c,118,Paint()..style=PaintingStyle.stroke..strokeWidth=1..color=Colors.white.withOpacity(.10));
-    final rect=Rect.fromCircle(center:c,radius:118);
-    final arc=Paint()
-      ..style=PaintingStyle.stroke..strokeWidth=2..strokeCap=StrokeCap.round
-      ..shader=SweepGradient(colors:[pink,purple,Colors.transparent],transform:GradientRotation(2*math.pi*t)).createShader(rect);
-    canvas.drawArc(rect,0,math.pi*1.35,false,arc);
-    final starAngle=2*math.pi*t;
-    final starC=c+Offset(math.cos(starAngle)*118,math.sin(starAngle)*118);
-    final path=Path()
-      ..moveTo(starC.dx,starC.dy-7)
-      ..quadraticBezierTo(starC.dx,starC.dy,starC.dx+7,starC.dy)
-      ..quadraticBezierTo(starC.dx,starC.dy,starC.dx,starC.dy+7)
-      ..quadraticBezierTo(starC.dx,starC.dy,starC.dx-7,starC.dy)
-      ..quadraticBezierTo(starC.dx,starC.dy,starC.dx,starC.dy-7)
-      ..close();
-    canvas.drawPath(path,Paint()..color=pink..maskFilter=const MaskFilter.blur(BlurStyle.normal,4));
-  }
-  @override bool shouldRepaint(covariant _OrbitPainter oldDelegate)=>oldDelegate.t!=t;
+  void info(BuildContext context,String title,String body)=>showDialog(context:context,builder:(_)=>AlertDialog(title:Text(title),content:Text(body),actions:[FilledButton(onPressed:()=>Navigator.pop(context),child:Text(S(context).ok))]));
 }
 
 class VibeSplash extends StatefulWidget{

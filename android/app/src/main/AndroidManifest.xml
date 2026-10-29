@@ -3,6 +3,14 @@
          HTTP/WebSocket-запросы в release-сборке (debug-манифест имеет
          INTERNET по умолчанию, поэтому в debug всё «работает»). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Звонки (WebRTC): микрофон, камера, аудио-маршрут на динамик -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
         android:label="vibe3"
         android:name="${applicationName}"
