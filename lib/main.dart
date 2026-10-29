@@ -57,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.3.3 api=$apiBase');
+  Api.debugLog('app start v1.3.4 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -139,7 +139,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.3.3';
+  String get version=>'v1.3.4';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -435,8 +435,16 @@ class _AuthState extends State<AuthScreen>{
   @override void initState(){
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // v1.3.4: авто-подтверждение, как в Telegram — 6 цифр в поле (введены или вставлены сами) → проверяем сразу
+    code.addListener(_codeAuto);
   }
-  @override void dispose(){email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();phone.dispose();code.dispose();resendTimer?.cancel();super.dispose();}
+  // v1.3.4: программная вставка devCode не триггерит onChanged — раньше после вставки кода ничего не происходило,
+  // а кнопка «Подтвердить» оставалась за границей экрана. Теперь подтверждаем сами при 6 цифрах.
+  void _codeAuto(){
+    if(!mounted||busy||regStage!='code')return;
+    if(code.text.trim().length==6)verifyCode();
+  }
+  @override void dispose(){code.removeListener(_codeAuto);email.dispose();name.dispose();username.dispose();pass.dispose();pass2.dispose();phone.dispose();code.dispose();resendTimer?.cancel();super.dispose();}
   String normPhoneLocal(String p){String s=p.replaceAll(RegExp(r'[^0-9+]'),'');if(s.startsWith('8')&&s.length==11)s='+7'+s.substring(1);if(s.isNotEmpty&&!s.startsWith('+'))s='+$s';return s;}
   bool phoneValid(String p)=>RegExp(r'^\+\d{10,15}$').hasMatch(p);
   Future<void> _editServer()async{
@@ -547,9 +555,12 @@ class _AuthState extends State<AuthScreen>{
       resendTimer=Timer.periodic(const Duration(seconds:1),(t){if(!mounted){resendTimer?.cancel();return;}if(resendIn<=1){resendTimer?.cancel();if(mounted)setState(()=>resendIn=0);}else setState(()=>resendIn--);});
     }catch(err){snack(friendlyError(err,s));}
     finally{if(mounted)setState(()=>busy=false);}
+    // v1.3.4: devCode вставлен в поле уже после снятия busy — слушатель не сработал; подтверждаем явно
+    if(mounted&&regStage=='code'&&code.text.trim().length==6)await verifyCode();
   }
   Future<void> verifyCode()async{
     final s=S(context);final ph=normPhoneLocal(phone.text.trim());final e=email.text.trim().toLowerCase();
+    if(busy)return; // v1.3.4: защита от двойного сабмита (кнопка + авто-подтверждение)
     final c=code.text.trim();
     if(c.length!=6){snack(s.codeInvalid);return;}
     setState(()=>busy=true);
@@ -604,6 +615,9 @@ class _AuthState extends State<AuthScreen>{
     return Scaffold(
       backgroundColor:context.cBg,
       extendBody:true,
+      // v1.3.4: НЕ сжимаем вьюпорт под клавиатуру — именно из-за resize у юзера контент обрезался,
+      // снизу появлялась чёрная полоса, а «Подтвердить» уезжала за экран. Скролл сам подводит поле к клавиатуре.
+      resizeToAvoidBottomInset:false,
       body:SafeArea(
         child:Container(
           color:context.cBg,
@@ -651,6 +665,7 @@ class _AuthState extends State<AuthScreen>{
                             controller:code,
                             resendIn:resendIn,
                             phoneDone:phoneOk,
+                            onVerify:busy?null:verifyCode,
                             onResend:resendIn>0||busy?null:()=>requestCode(codePurpose),
                             onBack:busy?null:(){resendTimer?.cancel();setState(() {regStage='form';devCode=null;code.text='';});},
                             onSkip:codePurpose=='phone'&&!busy?skipPhone:null,
@@ -748,8 +763,8 @@ class _AuthState extends State<AuthScreen>{
 // ===== Экран ввода кода подтверждения (SMS / почта) в мастере регистрации =====
 class _RegCodeStep extends StatelessWidget{
   final String purpose,target;final String? devCode;final bool busy;final bool phoneDone;
-  final TextEditingController controller;final int resendIn;final VoidCallback? onResend,onBack,onSkip;
-  const _RegCodeStep({required this.purpose,required this.target,required this.devCode,required this.busy,required this.controller,required this.resendIn,required this.phoneDone,this.onResend,this.onBack,this.onSkip});
+  final TextEditingController controller;final int resendIn;final VoidCallback? onResend,onBack,onSkip,onVerify;
+  const _RegCodeStep({required this.purpose,required this.target,required this.devCode,required this.busy,required this.controller,required this.resendIn,required this.phoneDone,this.onResend,this.onBack,this.onSkip,this.onVerify});
   @override Widget build(BuildContext context){
     final s=S(context);
     return Container(key:const ValueKey('reg-code-step'),margin:const EdgeInsets.only(bottom:4),padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:context.cSurf,borderRadius:BorderRadius.circular(24),border:Border.all(color:context.cLine)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -785,6 +800,10 @@ class _RegCodeStep extends StatelessWidget{
         ])),
       ],
       const SizedBox(height:14),
+      // v1.3.4: кнопка «Подтвердить» ПРЯМО В КАРТОЧКЕ — раньше она была ниже, за границей экрана,
+      // и юзер не мог продолжить после вставки кода
+      _GradientButton(height:52,radius:15,busy:busy,onTap:onVerify,icon:Icons.verified_outlined,label:s.regVerify),
+      const SizedBox(height:8),
       Row(children:[
         if(onSkip!=null)...[
           Expanded(child:TextButton(onPressed:onSkip,style:TextButton.styleFrom(padding:const EdgeInsets.symmetric(vertical:14)),child:Text(s.regSkip,textAlign:TextAlign.center,style:TextStyle(fontSize:12.5,color:context.cMut,fontWeight:FontWeight.w800)))),
