@@ -112,8 +112,57 @@ app.get('/chats',auth,async(req,res)=>{const r=await pool.query(`SELECT c.*,
  ORDER BY COALESCE((SELECT MAX(created_at) FROM messages m2 WHERE m2.chat_id=c.id),c.created_at) DESC`,[req.user.id]);res.json(r.rows);});
 app.post('/chats/:id/read',auth,async(req,res)=>{try{
  await pool.query('UPDATE chat_members SET last_read_at=now() WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ io.to('chat:'+req.params.id).emit('read',{chatId:String(req.params.id),userId:req.user.id});
  res.json({ok:true});
 }catch(e){console.error('read_mark_failed',e);res.status(500).json({error:'read_mark_failed'});}});
+
+// Удалить чат: снимает моё членство; если участников не осталось — чат стирается целиком
+app.delete('/chats/:id',auth,async(req,res)=>{try{
+ const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ if(!member.rowCount)return res.status(403).json({error:'not_member'});
+ await pool.query('DELETE FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ const left=await pool.query('SELECT COUNT(*)::int n FROM chat_members WHERE chat_id=$1',[req.params.id]);
+ io.to('chat:'+req.params.id).emit('chatDeleted',{chatId:String(req.params.id)});
+ if(!left.rows[0].n)await pool.query('DELETE FROM chats WHERE id=$1',[req.params.id]);
+ res.json({ok:true});
+}catch(e){console.error('chat_delete_failed',e);res.status(500).json({error:'chat_delete_failed'});}});
+
+// Удалить своё сообщение (только автор)
+app.delete('/chats/:id/messages/:mid',auth,async(req,res)=>{try{
+ const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ if(!member.rowCount)return res.status(403).json({error:'not_member'});
+ const r=await pool.query('DELETE FROM messages WHERE id=$1 AND sender_id=$2 RETURNING id',[req.params.mid,req.user.id]);
+ if(!r.rowCount)return res.status(404).json({error:'not_found'});
+ io.to('chat:'+req.params.id).emit('messageDeleted',{chatId:String(req.params.id),id:String(req.params.mid)});
+ res.json({ok:true});
+}catch(e){console.error('msg_delete_failed',e);res.status(500).json({error:'msg_delete_failed'});}});
+
+// Список участников чата (для групп)
+app.get('/chats/:id/members',auth,async(req,res)=>{try{
+ const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);
+ if(!member.rowCount)return res.status(403).json({error:'not_member'});
+ const r=await pool.query('SELECT u.id,u.username,u.display_name FROM chat_members cm JOIN users u ON u.id=cm.user_id WHERE cm.chat_id=$1 ORDER BY u.display_name LIMIT 100',[req.params.id]);
+ res.json(r.rows);
+}catch(e){console.error('members_failed',e);res.status(500).json({error:'members_failed'});}});
+
+// --- История звонков ---
+app.post('/calls',auth,async(req,res)=>{try{
+ const cid=String(req.body?.chatId||'');if(!cid)return res.status(400).json({error:'chat_required'});
+ const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[cid,req.user.id]);
+ if(!member.rowCount)return res.status(403).json({error:'not_member'});
+ const o=await pool.query('SELECT user_id FROM chat_members WHERE chat_id=$1 AND user_id<>$2 LIMIT 1',[cid,req.user.id]);
+ if(!o.rowCount)return res.status(400).json({error:'no_peer'});
+ const r=await pool.query('INSERT INTO calls(chat_id,caller_id,callee_id,video,status,duration) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[cid,req.user.id,o.rows[0].user_id,req.body?.video==true,String(req.body?.status||'ended'),Math.max(0,Number(req.body?.duration)||0)]);
+ res.json(r.rows[0]);
+}catch(e){console.error('call_log_failed',e);res.status(500).json({error:'call_log_failed'});}});
+app.get('/calls',auth,async(req,res)=>{try{
+ const r=await pool.query(`SELECT cl.*,c.is_group,
+ CASE WHEN c.is_group THEN c.title ELSE COALESCE((SELECT u.display_name FROM users u WHERE u.id=CASE WHEN cl.caller_id=$1 THEN cl.callee_id ELSE cl.caller_id END),c.title) END AS title,
+ CASE WHEN cl.caller_id=$1 THEN 'out' ELSE 'in' END AS direction
+ FROM calls cl JOIN chats c ON c.id=cl.chat_id
+ WHERE cl.caller_id=$1 OR cl.callee_id=$1 ORDER BY cl.created_at DESC LIMIT 50`,[req.user.id]);
+ res.json(r.rows);
+}catch(e){console.error('calls_list_failed',e);res.status(500).json({error:'calls_list_failed'});}});
 app.post('/chats/:id/members',auth,async(req,res)=>{
  try{
   const owner=await pool.query('SELECT 1 FROM chat_members cm JOIN chats c ON c.id=cm.chat_id WHERE cm.chat_id=$1 AND cm.user_id=$2 AND c.is_group=true',[req.params.id,req.user.id]);
@@ -137,11 +186,39 @@ app.post('/chats/:id/messages',auth,async(req,res)=>{try{
  const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[req.params.id,req.user.id]);if(!member.rowCount)return res.status(403).json({error:'not_member'});
  const body=String(req.body?.body||'').trim();if(!body)return res.status(400).json({error:'empty_message'});
  const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[req.params.id,req.user.id,body,req.body?.type||'text',req.body?.mediaUrl||null]);
- io.to('chat:'+req.params.id).emit('message',r.rows[0]);res.json(r.rows[0]);
+ io.to('chat:'+req.params.id).emit('message',r.rows[0]);
+ notifyMembers(req.params.id,req.user.id,req.user.name,body);
+ res.json(r.rows[0]);
 }catch(e){console.error(e);res.status(500).json({error:'message_failed'});}});
 
 io.use((s,next)=>{try{s.user=jwt.verify(s.handshake.auth?.token||'',SECRET);next();}catch{next(new Error('unauthorized'));}});
-io.on('connection',s=>{s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));s.on('joinChat',id=>s.join('chat:'+id));s.on('typing',m=>{if(!m||!m.chatId)return;io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});});s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);}catch(e){s.emit('error',{error:'message_failed'});}});s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));});
+// Уведомления всем, кроме отправителя: личная комната каждого участника
+async function notifyMembers(chatId,senderId,senderName,body){
+ try{
+  const others=await pool.query('SELECT user_id FROM chat_members WHERE chat_id=$1 AND user_id<>$2',[chatId,senderId]);
+  for(const o of others.rows)io.to('user:'+o.user_id).emit('notify',{chatId:String(chatId),fromName:String(senderName||'').slice(0,60),body:String(body||'').slice(0,120)});
+ }catch(e){console.error('notify_failed',e);}
+}
+
+io.on('connection',s=>{
+ s.join('user:'+s.user.id); // личная комната: уведомления + звонки без привязки к чату
+ s.on('presence',v=>s.broadcast.emit('presence',{userId:s.user.id,online:!!v}));
+ s.on('joinChat',id=>s.join('chat:'+id));
+ s.on('typing',m=>{if(!m||!m.chatId)return;io.to('chat:'+m.chatId).emit('typing',{chatId:String(m.chatId),userId:s.user.id,typing:!!m.typing});});
+ s.on('message',async m=>{try{const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);if(!member.rowCount)return;const r=await pool.query('INSERT INTO messages(chat_id,sender_id,body,message_type,media_url) VALUES($1,$2,$3,$4,$5) RETURNING *',[m.chatId,s.user.id,String(m.body||''),m.type||'text',m.mediaUrl||null]);io.to('chat:'+m.chatId).emit('message',r.rows[0]);notifyMembers(m.chatId,s.user.id,s.user.name,m.body);}catch(e){s.emit('error',{error:'message_failed'});}});
+ // --- Сигналинг WebRTC-звонков: релей только между участниками чата ---
+ s.on('call',async m=>{try{
+   if(!m||!m.chatId||!m.to||!m.offer)return;
+   const member=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,s.user.id]);
+   const toMember=await pool.query('SELECT 1 FROM chat_members WHERE chat_id=$1 AND user_id=$2',[m.chatId,m.to]);
+   if(!member.rowCount||!toMember.rowCount)return;
+   io.to('user:'+m.to).emit('call',{chatId:String(m.chatId),from:s.user.id,name:String(m.name||'').slice(0,60),video:!!m.video,offer:m.offer});
+ }catch(e){s.emit('error',{error:'call_failed'});}});
+ s.on('call:answer',m=>{if(m&&m.to&&m.answer)io.to('user:'+m.to).emit('call:answer',{chatId:String(m.chatId||''),from:s.user.id,answer:m.answer});});
+ s.on('call:ice',m=>{if(m&&m.to&&m.candidate)io.to('user:'+m.to).emit('call:ice',{chatId:String(m.chatId||''),from:s.user.id,candidate:m.candidate});});
+ s.on('call:end',m=>{if(m&&m.to)io.to('user:'+m.to).emit('call:end',{chatId:String(m.chatId||''),from:s.user.id,reason:String(m.reason||'ended')});});
+ s.on('disconnect',()=>s.broadcast.emit('presence',{userId:s.user.id,online:false}));
+});
 
 async function migrate(){
   const statements=[
@@ -186,7 +263,18 @@ async function migrate(){
     )`,
     'ALTER TABLE chat_members ADD COLUMN IF NOT EXISTS last_read_at TIMESTAMPTZ',
     'CREATE INDEX IF NOT EXISTS idx_messages_chat_created ON messages(chat_id,created_at)',
-    'CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id)'
+    'CREATE INDEX IF NOT EXISTS idx_chat_members_user ON chat_members(user_id)',
+    `CREATE TABLE IF NOT EXISTS calls(
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      chat_id UUID NOT NULL REFERENCES chats(id) ON DELETE CASCADE,
+      caller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      callee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      video BOOLEAN NOT NULL DEFAULT false,
+      status TEXT NOT NULL DEFAULT 'ended',
+      duration INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_calls_users ON calls(caller_id,callee_id,created_at DESC)'
   ];
   for(const sql of statements){
     try{await pool.query(sql);}
