@@ -57,7 +57,7 @@ Future<void> main()async{
     if(u!=null&&u.trim().length>8)apiBase=u.trim().replaceAll(RegExp(r'/+$'),'');
     if(p.getBool('secure_mode')??false)await applySecureFlag(true); // запрет скриншотов
   }catch(_){}
-  Api.debugLog('app start v1.3.2 api=$apiBase');
+  Api.debugLog('app start v1.3.3 api=$apiBase');
   runApp(const VibeApp());
 }
 
@@ -66,11 +66,12 @@ class Api{
  static Future<String?> token()async=>(await SharedPreferences.getInstance()).getString('token');
  static Future<Map<String,String>> headers()async{final t=await token();return {'Content-Type':'application/json',if(t!=null)'Authorization':'Bearer $t'};}
  static bool _transient(Object e)=>e is TimeoutException||e is SocketException||e is HandshakeException||e is http.ClientException||['timeout','socketexception','clientexception','handshake','oserror','connection refused','connection reset','network is unreachable','failed host lookup'].any((k)=>e.toString().toLowerCase().contains(k));
- static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.3.0'})).timeout(const Duration(seconds:5));}catch(_){}}
- // Render free просыпается 30-60 сек: пингуем /health, пока не ответит
+ // v1.3.3: полностью «тихий» — onTimeout возвращает заглушку, чтобы 5с-таймаут не улетал в PlatformDispatcher как UNCAUGHT (спамило логи и маскировало реальные ошибки)
+ static void debugLog(String m){try{http.post(Uri.parse('$apiBase/debug/log'),headers:const{'Content-Type':'application/json'},body:jsonEncode({'msg':m,'v':'1.3.3'})).timeout(const Duration(seconds:5),onTimeout:()=>http.Response('',504)).then((_){},onError:(_){});}catch(_){}}
+ // Render free просыпается 30-180 сек: пингуем /health, пока не ответит (v1.3.3: бюджет ~140с вместо ~80с)
  static Future<void> _ensureAwake()async{
-  for(int i=0;i<8;i++){
-   try{final r=await http.get(Uri.parse('$apiBase/health')).timeout(const Duration(seconds:8));if(r.statusCode==200)return;}catch(_){}
+  for(int i=0;i<20;i++){
+   try{final r=await http.get(Uri.parse('$apiBase/health')).timeout(const Duration(seconds:5));if(r.statusCode==200)return;}catch(_){}
    try{await Future.delayed(const Duration(milliseconds:2000));}catch(_){}
   }
  }
@@ -138,7 +139,7 @@ class AppStrings {
   String get notificationsOn=>ru?'Включены':'Enabled';
   String get notificationsOff=>ru?'Выключены':'Disabled';
   String get about=>ru?'О приложении':'About';
-  String get version=>'v1.3.2';
+  String get version=>'v1.3.3';
   String get signOut=>ru?'Выйти':'Sign out';
   String get createAccount=>ru?'Создать аккаунт':'Create account';
   String get welcomeBack=>ru?'С возвращением':'Welcome back';
@@ -171,6 +172,8 @@ class AppStrings {
   String get invalidUsername=>ru?'Некорректный username':'Invalid username';
   String get invalidCredentials=>ru?'Неверный email или пароль':'Invalid email or password';
   String get connectionError=>ru?'Нет соединения. Попробуй ещё раз':'Connection error. Try again';
+  String get retry=>ru?'Повторить':'Retry';
+  String get wakingUp=>ru?'Сервер просыпается (это занимает до пары минут на бесплатном тарифе)…':'Server is waking up (can take a couple of minutes on the free tier)…';
   String get openChatError=>ru?'Не удалось открыть чат':'Could not open the chat';
   String get profileCheck=>ru?'Проверь имя и username':'Check name and username';
   String get profileSaveError=>ru?'Не удалось сохранить':'Could not save';
@@ -1254,9 +1257,13 @@ class _ChatsState extends State<Chats>{
             Expanded(child:loading
                   ?ListView(children:[const SizedBox(height:170),const Center(child:CircularProgressIndicator(color:pink))])
                   :error!=null
-                    ?ListView(
-                      physics:const AlwaysScrollableScrollPhysics(),
-                      children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!)],
+                    ?RefreshIndicator(
+                      onRefresh:()async{await load();},
+                      color:pink,
+                      child:ListView(
+                        physics:const AlwaysScrollableScrollPhysics(),
+                        children:[const SizedBox(height:120),EmptyState(icon:Icons.cloud_off_rounded,title:s.connectionError,sub:error!),const SizedBox(height:14),Center(child:FilledButton.tonal(onPressed:(){setState(()=>loading=true);load();},icon:const Icon(Icons.refresh_rounded),child:Text(s.retry))),const SizedBox(height:10),Padding(padding:const EdgeInsets.symmetric(horizontal:34),child:Text(s.wakingUp,textAlign:TextAlign.center,style:TextStyle(color:context.cMut,fontSize:11.5)))],
+                      ),
                     )
                   :filtered.isEmpty
                     ?ListView(
@@ -1526,9 +1533,15 @@ class Avatar extends StatelessWidget{
       final i=url.indexOf('base64,');
       if(i<0)return null;
       final b=base64Decode(url.substring(i+7));
-      if(b.isNotEmpty){if(_mem.length>60)_mem.clear();_mem[url]=b;return b;}
+      // v1.3.3: сниффер магических байтов — битые данные (не PNG/JPEG/WEBP/GIF) не отдаём в Image.memory,
+      // иначе «Invalid image data» улетает в PlatformDispatcher, а аватарка пустует
+      if(b.isNotEmpty&&_looksLikeImage(b)){if(_mem.length>60)_mem.clear();_mem[url]=b;return b;}
     }catch(_){}
     return null;
+  }
+  static bool _looksLikeImage(Uint8List b){
+    bool pfx(List<int>m)=>b.length>=m.length&&List<int>.generate(m.length,(i)=>b[i]).toString()==m.toString();
+    return pfx([0x89,0x50,0x4E,0x47])||pfx([0xFF,0xD8,0xFF])||pfx([0x52,0x49,0x46,0x46])||pfx([0x47,0x49,0x46,0x38]);
   }
   @override Widget build(BuildContext context){
     final img=bytes(url);
@@ -1540,7 +1553,7 @@ class Avatar extends StatelessWidget{
           border:Border.all(color:Colors.white.withOpacity(.16),width:1),
           boxShadow:[BoxShadow(color:pink.withOpacity(.24),blurRadius:16,spreadRadius:-2)],
         ),
-        child:ClipRRect(borderRadius:BorderRadius.circular(size*.32-(size>60?1.2:.8)),child:Image.memory(img,fit:BoxFit.cover,gaplessPlayback:true)),
+        child:ClipRRect(borderRadius:BorderRadius.circular(size*.32-(size>60?1.2:.8)),child:Image.memory(img,fit:BoxFit.cover,gaplessPlayback:true,errorBuilder:(_,__,___)=>Container(color:context.cSurf,alignment:Alignment.center,child:Text(name.isEmpty?'?':name.characters.first.toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w900))))),
       );
     }
     const colors=[purple,pink,blue,green];final i=name.isEmpty?0:name.codeUnitAt(0)%colors.length;
